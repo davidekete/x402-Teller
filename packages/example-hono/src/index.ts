@@ -11,8 +11,6 @@ const facilitator = new Facilitator({
   networks: [baseSepolia],
 });
 
-// Add facilitator endpoints using the Hono adapter
-// This mounts GET /facilitator/supported, POST /facilitator/verify, POST /facilitator/settle
 createHonoAdapter(facilitator, app, "/facilitator");
 
 // Configure the payment middleware

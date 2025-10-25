@@ -9,7 +9,7 @@ When you run this, you become the thing that:
 - verifies a buyer’s signed payment intent (`/verify`)
 - settles that intent on-chain by pulling funds from the buyer (`/settle`)
 
-No external facilitator. No Coinbase account. Your infra, your key.
+No external facilitator. No Coinbase account. Your own infra.
 
 ---
 
@@ -20,26 +20,65 @@ No external facilitator. No Coinbase account. Your infra, your key.
 
 - **EVM-only for now (Base / Base Sepolia etc.)**
 
-- **Framework-agnostic core**  
-  We don’t ship an HTTP server. You create one (Hono, Express, whatever) and map routes to the class methods.
+- **Framework adapters included**  
+  Built-in adapters for Hono and Express. Or use the framework-agnostic core with any HTTP server.
 
 ---
 
-## Minimal setup
+## Quick Start
+
+### Option 1: Using Built-in Adapters (Recommended)
+
+**With Hono:**
+
+```ts
+import { Hono } from "hono";
+import { Facilitator, createHonoAdapter } from "@x402-sovereign/core";
+import { baseSepolia } from "viem/chains";
+
+const app = new Hono();
+
+const facilitator = new Facilitator({
+  evmPrivateKey: process.env.EVM_PRIVATE_KEY as `0x${string}`,
+  networks: [baseSepolia],
+});
+
+// Mounts GET /facilitator/supported, POST /facilitator/verify, POST /facilitator/settle
+createHonoAdapter(facilitator, app, "/facilitator");
+```
+
+**With Express:**
+
+```ts
+import express from "express";
+import { Facilitator, createExpressAdapter } from "@x402-sovereign/core";
+import { baseSepolia } from "viem/chains";
+
+const app = express();
+app.use(express.json());
+
+const facilitator = new Facilitator({
+  evmPrivateKey: process.env.EVM_PRIVATE_KEY as `0x${string}`,
+  networks: [baseSepolia],
+});
+
+// Mounts GET /facilitator/supported, POST /facilitator/verify, POST /facilitator/settle
+createExpressAdapter(facilitator, app, "/facilitator");
+```
+
+### Option 2: Manual Setup (Any Framework)
 
 ```ts
 import { Facilitator } from "@x402-sovereign/core";
 import { baseSepolia } from "viem/chains";
 
 const facilitator = new Facilitator({
-  evmPrivateKey: process.env.EVM_PRIVATE_KEY as `0x${string}`, // settlement key
-  networks: [baseSepolia], // chains you’re willing to settle on
+  evmPrivateKey: process.env.EVM_PRIVATE_KEY as `0x${string}`,
+  networks: [baseSepolia],
 });
-```
 
-Now expose three routes in your server:
+// Expose three routes in your server:
 
-```ts
 // GET /supported
 facilitator.listSupportedKinds()
 
@@ -113,10 +152,25 @@ Used for `/settle`.
 
 ---
 
+## Framework Adapters
+
+Built-in adapters are available for popular frameworks. See [ADAPTERS.md](./ADAPTERS.md) for details:
+
+- **Hono**: `createHonoAdapter(facilitator, app, basePath)`
+- **Express**: `createExpressAdapter(facilitator, router, basePath)`
+- **Custom**: Use `facilitator.handleRequest()` for any other framework
+
+## Examples
+
+- **Hono Example**: [`./example-hono/`](./packages/example-hono/)
+- **Express Example**: [`./packages/example-express/`](./packages/example-express/)
+
+---
+
 ## Status
 
 - EVM only
 - per-request payments work end to end on Base Sepolia
 - entitlement / persistence (who already paid for what) is out of scope for this package and will live above it
 
-That’s the whole point of this repo. You own the facilitator.
+That's the whole point of this repo. You own the facilitator.
