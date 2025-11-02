@@ -1,5 +1,5 @@
 import type { Chain } from "viem";
-import { fromViemNameToX402Network } from "./utils";
+import { toX402Network, isSolanaNetwork } from "./utils";
 
 import {
   verify as x402Verify,
@@ -10,6 +10,7 @@ import {
   createConnectedClient,
   createSigner,
   SupportedEVMNetworks,
+  SupportedSVMNetworks,
 } from "x402/types";
 
 import type {
@@ -41,9 +42,12 @@ export interface VerifyResult {
   payer?: string;
 }
 
+export type SolanaNetwork = "solana" | "solana-devnet";
+
 export interface CreateFacilitatorOptions {
-  evmPrivateKey: string;
-  networks: Chain[];
+  evmPrivateKey?: string;
+  solanaPrivateKey?: string;
+  networks: (Chain | SolanaNetwork)[];
   minConfirmations?: number;
 }
 
@@ -71,19 +75,21 @@ export interface HttpRequest {
 }
 
 export class Facilitator {
-  private readonly evmPrivateKey: string;
-  private readonly networks: Chain[];
+  private readonly evmPrivateKey?: string;
+  private readonly solanaPrivateKey?: string;
+  private readonly networks: (Chain | SolanaNetwork)[];
   private readonly minConfirmations: number;
 
   constructor(options: CreateFacilitatorOptions) {
-    if (!options.evmPrivateKey) {
-      throw new Error("Facilitator: evmPrivateKey is required");
+    if (!options.evmPrivateKey && !options.solanaPrivateKey) {
+      throw new Error("Facilitator: at least one private key (evmPrivateKey or solanaPrivateKey) is required");
     }
     if (!options.networks || options.networks.length === 0) {
-      throw new Error("Facilitator: at least one EVM network is required");
+      throw new Error("Facilitator: at least one network is required");
     }
 
     this.evmPrivateKey = options.evmPrivateKey;
+    this.solanaPrivateKey = options.solanaPrivateKey;
     this.networks = options.networks;
     this.minConfirmations =
       options.minConfirmations ?? DEFAULT_MIN_CONFIRMATIONS;
@@ -91,14 +97,14 @@ export class Facilitator {
 
   /**
    * Returns the list of payment "kinds" this facilitator supports.
-   * 
+   *
    * @returns Object with array of supported payment kinds
    */
   public listSupportedKinds(): SupportedResponse {
-    const kinds: SupportedKind[] = this.networks.map((chain) => ({
+    const kinds: SupportedKind[] = this.networks.map((network) => ({
       x402Version: 1,
       scheme: "exact",
-      network: fromViemNameToX402Network(chain),
+      network: toX402Network(network),
     }));
 
     return { kinds };
@@ -106,10 +112,10 @@ export class Facilitator {
 
   /**
    * Verifies a payment authorization without settling it on-chain.
-   * 
+   *
    * Checks the signature and payment details are valid according to the
    * payment requirements.
-   * 
+   *
    * @param paymentPayload The signed payment authorization
    * @param paymentRequirements The expected payment details
    * @returns Verification result with validity and payer address
@@ -121,13 +127,17 @@ export class Facilitator {
     const requestedNetwork = paymentRequirements.network;
 
     const locallySupported = this.networks.some(
-      (chain) => fromViemNameToX402Network(chain) === requestedNetwork
+      (network) => toX402Network(network) === requestedNetwork
     );
     if (!locallySupported) {
       return { isValid: false };
     }
 
-    if (!SupportedEVMNetworks.includes(requestedNetwork as any)) {
+    // Check if network is supported by x402
+    const isEVM = SupportedEVMNetworks.includes(requestedNetwork as any);
+    const isSVM = SupportedSVMNetworks.includes(requestedNetwork as any);
+
+    if (!isEVM && !isSVM) {
       return { isValid: false };
     }
 
@@ -148,10 +158,10 @@ export class Facilitator {
 
   /**
    * Settles a payment by broadcasting the transaction to the blockchain.
-   * 
+   *
    * Creates a transaction from the payment authorization and broadcasts it
    * to the appropriate network.
-   * 
+   *
    * @param paymentPayload The signed payment authorization
    * @param paymentRequirements The expected payment details
    * @returns Settlement result with transaction hash and status
@@ -163,25 +173,53 @@ export class Facilitator {
     const requestedNetwork = paymentRequirements.network;
 
     const locallySupported = this.networks.some(
-      (chain) => fromViemNameToX402Network(chain) === requestedNetwork
+      (network) => toX402Network(network) === requestedNetwork
     );
     if (!locallySupported) {
-      return { 
+      return {
         success: false,
         transaction: "",
         network: requestedNetwork
       };
     }
 
-    if (!SupportedEVMNetworks.includes(requestedNetwork as any)) {
-      return { 
+    // Check if network is supported by x402
+    const isEVM = SupportedEVMNetworks.includes(requestedNetwork as any);
+    const isSVM = SupportedSVMNetworks.includes(requestedNetwork as any);
+
+    if (!isEVM && !isSVM) {
+      return {
         success: false,
         transaction: "",
         network: requestedNetwork
       };
     }
 
-    const signer = await createSigner(requestedNetwork, this.evmPrivateKey);
+    // Determine which private key to use
+    let privateKey: string;
+    if (isSVM) {
+      if (!this.solanaPrivateKey) {
+        return {
+          success: false,
+          transaction: "",
+          network: requestedNetwork,
+          errorReason: "Solana private key not configured"
+        };
+      }
+      privateKey = this.solanaPrivateKey;
+    } else {
+      if (!this.evmPrivateKey) {
+        return {
+          success: false,
+          transaction: "",
+          network: requestedNetwork,
+          errorReason: "EVM private key not configured"
+        };
+      }
+      privateKey = this.evmPrivateKey;
+    }
+
+    const signer = await createSigner(requestedNetwork, privateKey);
 
     const resp: X402SettleResponse = await x402Settle(
       signer,
