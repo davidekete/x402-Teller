@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@x402-sovereign/core": "workspace:*",
+    "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "viem": "^2.38.4",
     "x402-express": "^0.6.5"
@@ -20,4 +21,3 @@
     "typescript": "^5.6.3"
   }
 }
-

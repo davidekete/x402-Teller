@@ -1,17 +1,28 @@
 import express from "express";
-import { paymentMiddleware } from "x402-express";
+import { paymentMiddleware, type SolanaAddress } from "x402-express";
 import { Facilitator, createExpressAdapter } from "@x402-sovereign/core";
-import { baseSepolia } from "viem/chains";
+import { config } from "dotenv";
+
+config();
 
 const app = express();
 
 // Parse JSON bodies
 app.use(express.json());
 
+// Serve static files from public directory
+app.use(express.static("public"));
+
 // Initialize your sovereign facilitator
+// const facilitator = new Facilitator({
+//   evmPrivateKey: process.env.EVM_PRIVATE_KEY as `0x${string}`,
+//   networks: [baseSepolia],
+// });
+
 const facilitator = new Facilitator({
-  evmPrivateKey: process.env.EVM_PRIVATE_KEY as `0x${string}`,
-  networks: [baseSepolia],
+  solanaPrivateKey: process.env.SVM_PRIVATE_KEY as string,
+  solanaFeePayer: "4XSRdDViZH2CPjLqF3M4eDmE1UPHfsjg49m86PMNdZAw", // Your Solana public address
+  networks: ["solana-devnet"],
 });
 
 // Add facilitator endpoints using the Express adapter
@@ -21,18 +32,18 @@ createExpressAdapter(facilitator, app, "/facilitator");
 // Configure the payment middleware
 app.use(
   paymentMiddleware(
-    "0x0ED6Cec17F860fb54E21D154b49DAEFd9Ca04106",
+    "4XSRdDViZH2CPjLqF3M4eDmE1UPHfsjg49m86PMNdZAw" as SolanaAddress, // Your Solana wallet
     {
       "/protected-route": {
         price: "$0.10",
-        network: "base-sepolia",
+        network: "solana-devnet",
         config: {
           description: "Access to premium content",
         },
       },
     },
     {
-      url: "http://localhost:3000/facilitator",
+      url: "http://localhost:3002/facilitator",
     }
   )
 );
@@ -54,9 +65,10 @@ app.get("/protected-route", (req, res) => {
   res.json({ message: "This content is behind a paywall" });
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3002;
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`Facilitator endpoints available at http://localhost:${PORT}/facilitator`);
+  console.log(
+    `Facilitator endpoints available at http://localhost:${PORT}/facilitator`
+  );
 });
-

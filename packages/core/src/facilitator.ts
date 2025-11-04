@@ -47,6 +47,7 @@ export type SolanaNetwork = "solana" | "solana-devnet";
 export interface CreateFacilitatorOptions {
   evmPrivateKey?: string;
   solanaPrivateKey?: string;
+  solanaFeePayer?: string; // Solana public address for fee payer
   networks: (Chain | SolanaNetwork)[];
   minConfirmations?: number;
 }
@@ -57,6 +58,7 @@ export interface SupportedKind {
   x402Version: number;
   scheme: "exact";
   network: string;
+  extra?: Record<string, any>;
 }
 
 export interface SupportedResponse {
@@ -77,6 +79,7 @@ export interface HttpRequest {
 export class Facilitator {
   private readonly evmPrivateKey?: string;
   private readonly solanaPrivateKey?: string;
+  private readonly solanaFeePayer?: string;
   private readonly networks: (Chain | SolanaNetwork)[];
   private readonly minConfirmations: number;
 
@@ -88,8 +91,17 @@ export class Facilitator {
       throw new Error("Facilitator: at least one network is required");
     }
 
+    // Validate that if Solana networks are configured, we have a fee payer
+    const hasSolanaNetworks = options.networks.some((net) =>
+      typeof net === "string" && (net === "solana" || net === "solana-devnet")
+    );
+    if (hasSolanaNetworks && !options.solanaFeePayer) {
+      throw new Error("Facilitator: solanaFeePayer is required when using Solana networks");
+    }
+
     this.evmPrivateKey = options.evmPrivateKey;
     this.solanaPrivateKey = options.solanaPrivateKey;
+    this.solanaFeePayer = options.solanaFeePayer;
     this.networks = options.networks;
     this.minConfirmations =
       options.minConfirmations ?? DEFAULT_MIN_CONFIRMATIONS;
@@ -101,11 +113,25 @@ export class Facilitator {
    * @returns Object with array of supported payment kinds
    */
   public listSupportedKinds(): SupportedResponse {
-    const kinds: SupportedKind[] = this.networks.map((network) => ({
-      x402Version: 1,
-      scheme: "exact",
-      network: toX402Network(network),
-    }));
+    const kinds: SupportedKind[] = this.networks.map((network) => {
+      const networkName = toX402Network(network);
+      const isSolana = isSolanaNetwork(network);
+
+      const kind: SupportedKind = {
+        x402Version: 1,
+        scheme: "exact",
+        network: networkName,
+      };
+
+      // Add fee payer for Solana networks
+      if (isSolana && this.solanaFeePayer) {
+        kind.extra = {
+          feePayer: this.solanaFeePayer,
+        };
+      }
+
+      return kind;
+    });
 
     return { kinds };
   }
