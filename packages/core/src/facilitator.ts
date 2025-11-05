@@ -167,10 +167,20 @@ export class Facilitator {
       return { isValid: false };
     }
 
-    const client = createConnectedClient(requestedNetwork);
+    // For Solana, verification requires a signer (to simulate the transaction)
+    // For EVM, we can use just a client (read-only operations)
+    let clientOrSigner;
+    if (isSVM) {
+      if (!this.solanaPrivateKey) {
+        return { isValid: false };
+      }
+      clientOrSigner = await createSigner(requestedNetwork, this.solanaPrivateKey);
+    } else {
+      clientOrSigner = createConnectedClient(requestedNetwork);
+    }
 
     const resp: X402VerifyResponse = await x402Verify(
-      client,
+      clientOrSigner,
       paymentPayload as X402PaymentPayload,
       paymentRequirements as X402PaymentRequirements,
       undefined
