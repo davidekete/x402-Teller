@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Payment Required - Solana</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        /* background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); */
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+
+      .container {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        max-width: 480px;
+        width: 100%;
+        overflow: hidden;
+      }
+
+      .header {
+        background: linear-gradient(135deg, #9945ff 0%, #14f195 100%);
+        padding: 32px 24px;
+        text-align: center;
+        color: white;
+      }
+
+      .header h1 {
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+
+      .header p {
+        opacity: 0.9;
+        font-size: 14px;
+      }
+
+      .content {
+        padding: 32px 24px;
+      }
+
+      .payment-info {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 24px;
+      }
+
+      .payment-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        font-size: 14px;
+      }
+
+      .payment-row:last-child {
+        margin-bottom: 0;
+        padding-top: 12px;
+        border-top: 2px solid #e9ecef;
+        font-weight: 600;
+        font-size: 16px;
+      }
+
+      .payment-label {
+        color: #6c757d;
+      }
+
+      .payment-value {
+        color: #212529;
+        font-weight: 500;
+      }
+
+      .amount-large {
+        color: #9945ff;
+        font-size: 20px;
+      }
+
+      .wallet-section {
+        margin-bottom: 24px;
+      }
+
+      .wallet-button {
+        width: 100%;
+        padding: 16px;
+        background: #9945ff;
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+      }
+
+      .wallet-button:hover:not(:disabled) {
+        background: #7d3acc;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(153, 69, 255, 0.3);
+      }
+
+      .wallet-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      .wallet-button.connected {
+        background: #14f195;
+        color: #212529;
+      }
+
+      .wallet-button.connected:hover {
+        background: #0dd67f;
+      }
+
+      .pay-button {
+        width: 100%;
+        padding: 16px;
+        background: #14f195;
+        color: #212529;
+        border: none;
+        border-radius: 12px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-top: 16px;
+      }
+
+      .pay-button:hover:not(:disabled) {
+        background: #0dd67f;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(20, 241, 149, 0.3);
+      }
+
+      .pay-button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      .status {
+        padding: 12px;
+        border-radius: 8px;
+        margin-top: 16px;
+        font-size: 14px;
+        text-align: center;
+      }
+
+      .status.info {
+        background: #e7f3ff;
+        color: #0066cc;
+      }
+
+      .status.error {
+        background: #ffe7e7;
+        color: #cc0000;
+      }
+
+      .status.success {
+        background: #e7ffe7;
+        color: #00cc00;
+      }
+
+      .status.loading {
+        background: #fff3cd;
+        color: #856404;
+      }
+
+      .spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .footer {
+        padding: 16px 24px;
+        background: #f8f9fa;
+        text-align: center;
+        font-size: 12px;
+        color: #6c757d;
+      }
+
+      .network-badge {
+        display: inline-block;
+        background: rgba(255, 255, 255, 0.2);
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        margin-top: 8px;
+      }
+
+      .truncate {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 120px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🔒 Payment Required</h1>
+        <p id="description">This resource requires a micropayment</p>
+        <div class="network-badge" id="networkBadge">Solana Devnet</div>
+      </div>
+
+      <div class="content">
+        <div class="payment-info">
+          <div class="payment-row">
+            <span class="payment-label">Resource</span>
+            <span class="payment-value truncate" id="resource">Loading...</span>
+          </div>
+          <div class="payment-row">
+            <span class="payment-label">Network</span>
+            <span class="payment-value" id="network">solana-devnet</span>
+          </div>
+          <div class="payment-row">
+            <span class="payment-label">Amount</span>
+            <span class="payment-value amount-large" id="amount"
+              >0.10 USDC</span
+            >
+          </div>
+        </div>
+
+        <div class="wallet-section">
+          <button
+            class="wallet-button"
+            id="connectButton"
+            onclick="connectWallet()"
+          >
+            <span id="walletText">Connect Phantom Wallet</span>
+          </button>
+        </div>
+
+        <button
+          class="pay-button"
+          id="payButton"
+          onclick="makePayment()"
+          disabled
+        >
+          Pay with Solana
+        </button>
+
+        <div id="status"></div>
+      </div>
+
+      <div class="footer">Powered by x402-Teller</div>
+    </div>
+
+    <script>
+      // Payment requirements will be injected by the x402-express middleware
+      // The middleware should replace __PAYMENT_REQUIREMENTS__ with actual JSON
+      const paymentRequirementsJson = "__PAYMENT_REQUIREMENTS__";
+      let paymentRequirements;
+
+      try {
+        // Try to parse the injected JSON
+        paymentRequirements = JSON.parse(paymentRequirementsJson);
+      } catch (e) {
+        // Fallback: extract from window location or use defaults
+        console.error("Failed to parse payment requirements:", e);
+        paymentRequirements = {
+          maxAmountRequired: "100000",
+          network: "solana-devnet",
+          resource: window.location.pathname,
+          description: "Payment required",
+          payTo: "4XSRdDViZH2CPjLqF3M4eDmE1UPHfsjg49m86PMNdZAw",
+          asset: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        };
+      }
+
+      let walletAddress = null;
+
+      // Update UI with payment details
+      function updateUI() {
+        const amountInUsdc =
+          parseInt(paymentRequirements.maxAmountRequired) / 1000000;
+        document.getElementById("amount").textContent =
+          amountInUsdc.toFixed(2) + " USDC";
+        document.getElementById("network").textContent =
+          paymentRequirements.network;
+        document.getElementById("resource").textContent =
+          paymentRequirements.resource;
+
+        if (paymentRequirements.description) {
+          document.getElementById("description").textContent =
+            paymentRequirements.description;
+        }
+
+        // Update network badge
+        const badge = document.getElementById("networkBadge");
+        if (paymentRequirements.network === "solana") {
+          badge.textContent = "Solana Mainnet";
+        } else {
+          badge.textContent = "Solana Devnet";
+        }
+      }
+
+      // Show status message
+      function showStatus(message, type = "info") {
+        const statusDiv = document.getElementById("status");
+        statusDiv.className = "status " + type;
+        statusDiv.innerHTML = message;
+      }
+
+      // Connect to Phantom wallet
+      async function connectWallet() {
+        try {
+          // Check if Phantom is installed
+          const { solana } = window;
+
+          if (!solana || !solana.isPhantom) {
+            showStatus(
+              'Phantom wallet not found. <a href="https://phantom.app/" target="_blank" style="color: inherit; text-decoration: underline;">Install Phantom</a>',
+              "error"
+            );
+            return;
+          }
+
+          showStatus("Connecting to Phantom...", "loading");
+
+          // Request connection
+          const response = await solana.connect();
+          walletAddress = response.publicKey.toString();
+
+          // Update UI
+          const connectButton = document.getElementById("connectButton");
+          connectButton.classList.add("connected");
+          document.getElementById("walletText").innerHTML = `
+                  <span>✓ ${walletAddress.slice(0, 4)}...${walletAddress.slice(
+            -4
+          )}</span>
+              `;
+
+          document.getElementById("payButton").disabled = false;
+          showStatus("Wallet connected successfully!", "success");
+        } catch (error) {
+          console.error("Wallet connection error:", error);
+          showStatus("Failed to connect wallet: " + error.message, "error");
+        }
+      }
+
+      // Make payment
+      async function makePayment() {
+        if (!walletAddress) {
+          showStatus("Please connect your wallet first", "error");
+          return;
+        }
+
+        try {
+          showStatus(
+            '<span class="spinner"></span> Creating payment transaction...',
+            "loading"
+          );
+          document.getElementById("payButton").disabled = true;
+
+          // TODO: Implement actual Solana payment transaction creation
+          // This would involve:
+          // 1. Creating a USDC transfer instruction to paymentRequirements.payTo
+          // 2. Using the amount from paymentRequirements.maxAmountRequired
+          // 3. Signing with Phantom wallet
+          // 4. Submitting payment to the facilitator
+
+          showStatus(
+            "⚠️ Payment implementation in progress. For now, this demonstrates the UI.",
+            "info"
+          );
+
+          // Placeholder: In a real implementation, you would:
+          // - Use @solana/web3.js to create the transaction
+          // - Create a USDC SPL token transfer
+          // - Sign with Phantom wallet
+          // - Submit to facilitator /settle endpoint
+          // - Retry the original request with payment proof
+        } catch (error) {
+          console.error("Payment error:", error);
+          showStatus("Payment failed: " + error.message, "error");
+          document.getElementById("payButton").disabled = false;
+        }
+      }
+
+      // Auto-detect if Phantom is available
+      window.addEventListener("load", () => {
+        updateUI();
+
+        if (window.solana && window.solana.isPhantom) {
+          showStatus("Phantom wallet detected. Click to connect.", "info");
+        } else {
+          showStatus("Please install Phantom wallet to continue", "error");
+        }
+      });
+    </script>
+  </body>
+</html>
