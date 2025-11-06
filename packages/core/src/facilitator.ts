@@ -1,10 +1,7 @@
 import type { Chain } from "viem";
 import { toX402Network, isSolanaNetwork } from "./utils";
 
-import {
-  verify as x402Verify,
-  settle as x402Settle,
-} from "x402/facilitator";
+import { verify as x402Verify, settle as x402Settle } from "x402/facilitator";
 
 import {
   createConnectedClient,
@@ -85,18 +82,23 @@ export class Facilitator {
 
   constructor(options: CreateFacilitatorOptions) {
     if (!options.evmPrivateKey && !options.solanaPrivateKey) {
-      throw new Error("Facilitator: at least one private key (evmPrivateKey or solanaPrivateKey) is required");
+      throw new Error(
+        "Facilitator: at least one private key (evmPrivateKey or solanaPrivateKey) is required"
+      );
     }
     if (!options.networks || options.networks.length === 0) {
       throw new Error("Facilitator: at least one network is required");
     }
 
     // Validate that if Solana networks are configured, we have a fee payer
-    const hasSolanaNetworks = options.networks.some((net) =>
-      typeof net === "string" && (net === "solana" || net === "solana-devnet")
+    const hasSolanaNetworks = options.networks.some(
+      (net) =>
+        typeof net === "string" && (net === "solana" || net === "solana-devnet")
     );
     if (hasSolanaNetworks && !options.solanaFeePayer) {
-      throw new Error("Facilitator: solanaFeePayer is required when using Solana networks");
+      throw new Error(
+        "Facilitator: solanaFeePayer is required when using Solana networks"
+      );
     }
 
     this.evmPrivateKey = options.evmPrivateKey;
@@ -174,7 +176,10 @@ export class Facilitator {
       if (!this.solanaPrivateKey) {
         return { isValid: false };
       }
-      clientOrSigner = await createSigner(requestedNetwork, this.solanaPrivateKey);
+      clientOrSigner = await createSigner(
+        requestedNetwork,
+        this.solanaPrivateKey
+      );
     } else {
       clientOrSigner = createConnectedClient(requestedNetwork);
     }
@@ -185,6 +190,10 @@ export class Facilitator {
       paymentRequirements as X402PaymentRequirements,
       undefined
     );
+
+    if (!resp.isValid) {
+      throw Error("Invalid payment");
+    }
 
     return {
       isValid: resp.isValid,
@@ -215,7 +224,7 @@ export class Facilitator {
       return {
         success: false,
         transaction: "",
-        network: requestedNetwork
+        network: requestedNetwork,
       };
     }
 
@@ -227,7 +236,7 @@ export class Facilitator {
       return {
         success: false,
         transaction: "",
-        network: requestedNetwork
+        network: requestedNetwork,
       };
     }
 
@@ -239,7 +248,7 @@ export class Facilitator {
           success: false,
           transaction: "",
           network: requestedNetwork,
-          errorReason: "Solana private key not configured"
+          errorReason: "Solana private key not configured",
         };
       }
       privateKey = this.solanaPrivateKey;
@@ -249,7 +258,7 @@ export class Facilitator {
           success: false,
           transaction: "",
           network: requestedNetwork,
-          errorReason: "EVM private key not configured"
+          errorReason: "EVM private key not configured",
         };
       }
       privateKey = this.evmPrivateKey;
@@ -275,12 +284,12 @@ export class Facilitator {
 
   /**
    * handleRequest()
-   * 
+   *
    * Framework-agnostic HTTP request handler for facilitator endpoints.
    * Handles GET /supported, POST /verify, and POST /settle.
-   * 
+   *
    * Returns a standard { status, body } response that can be used with any framework.
-   * 
+   *
    * @example
    * // Hono
    * app.all("/facilitator/*", async (c) => {
@@ -291,7 +300,7 @@ export class Facilitator {
    *   });
    *   return c.json(response.body, response.status);
    * });
-   * 
+   *
    * @example
    * // Express
    * app.all("/facilitator/*", async (req, res) => {

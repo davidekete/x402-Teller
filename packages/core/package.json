@@ -1,46 +1,55 @@
 {
-  "name": "@x402-sovereign/core",
-  "version": "0.4.0",
-  "type": "module",
-  "publishConfig": {
-    "access": "public"
-  },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "default": "./dist/index.js"
-    }
-  },
-  "files": [
-    "dist"
-  ],
-  "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "clean": "rm -rf dist",
-    "prepublishOnly": "bun run clean && bun run build",
-    "publish": "npm publish",
-    "test": "bun test"
-  },
-  "devDependencies": {
-    "@types/express": "^5.0.0",
-    "typescript": "^5.6.3"
-  },
-  "peerDependencies": {
-    "hono": "^4.0.0",
-    "express": "^4.0.0"
-  },
-  "peerDependenciesMeta": {
-    "hono": {
-      "optional": true
-    },
-    "express": {
-      "optional": true
-    }
-  },
-  "sideEffects": false
+   "name": "@x402-sovereign/core",
+   "version": "0.4.0",
+   "type": "module",
+   "publishConfig": {
+      "access": "public"
+   },
+   "main": "./dist/index.js",
+   "types": "./dist/index.d.ts",
+   "exports": {
+      ".": {
+         "types": "./dist/index.d.ts",
+         "import": "./dist/index.js",
+         "default": "./dist/index.js"
+      }
+   },
+   "files": [
+      "dist"
+   ],
+   "scripts": {
+      "build": "tsc -p tsconfig.json",
+      "clean": "rm -rf dist",
+      "prepublishOnly": "bun run clean && bun run build",
+      "publish": "npm publish",
+      "test": "bun test",
+      "start": "ts-node src/index.ts",
+      "typeorm": "typeorm-ts-node-commonjs"
+   },
+   "devDependencies": {
+      "@types/node": "^22.13.10",
+      "ts-node": "^10.9.2",
+      "typescript": "^5.6.3",
+      "@types/express": "^5.0.0",
+      "sqlite3": "^5.1.7"
+   },
+   "peerDependencies": {
+      "hono": "^4.0.0",
+      "express": "^4.0.0"
+   },
+   "peerDependenciesMeta": {
+      "hono": {
+         "optional": true
+      },
+      "express": {
+         "optional": true
+      }
+   },
+   "sideEffects": false,
+   "dependencies": {
+      "pg": "^8.14.1",
+      "sequelize": "^6.37.7",
+      "typeorm": "0.3.27",
+      "reflect-metadata": "^0.2.2"
+   }
 }
-
-
