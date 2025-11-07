@@ -17,6 +17,15 @@ import type {
   SettleResponse as X402SettleResponse,
 } from "x402/types";
 
+// Dashboard imports (optional)
+import {
+  createTransaction,
+  getAllTransactions,
+  getDashboardStats,
+  updateTransactionStatus,
+} from "./dashboard/utils/record";
+import { initializeDashboard } from "./dashboard";
+
 export interface SettleResult {
   success: boolean;
   errorReason?: string;
@@ -47,6 +56,11 @@ export interface CreateFacilitatorOptions {
   solanaFeePayer?: string; // Solana public address for fee payer
   networks: (Chain | SolanaNetwork)[];
   minConfirmations?: number;
+  enableDashboard?: boolean; // Enable transaction tracking to database
+  dashboardOptions?: {
+    force?: boolean; // If true, drops existing tables and recreates them (DEVELOPMENT ONLY)
+    autoInit?: boolean; // If true, automatically initializes dashboard on Facilitator creation (default: true)
+  };
 }
 
 export const DEFAULT_MIN_CONFIRMATIONS = 1;
@@ -79,6 +93,8 @@ export class Facilitator {
   private readonly solanaFeePayer?: string;
   private readonly networks: (Chain | SolanaNetwork)[];
   private readonly minConfirmations: number;
+  private readonly enableDashboard: boolean;
+  private dashboardReady: Promise<void> | null = null;
 
   constructor(options: CreateFacilitatorOptions) {
     if (!options.evmPrivateKey && !options.solanaPrivateKey) {
@@ -107,6 +123,40 @@ export class Facilitator {
     this.networks = options.networks;
     this.minConfirmations =
       options.minConfirmations ?? DEFAULT_MIN_CONFIRMATIONS;
+    this.enableDashboard = options.enableDashboard ?? false;
+
+    // Auto-initialize dashboard if enabled and autoInit is true (default)
+    const autoInit = options.dashboardOptions?.autoInit ?? true;
+    if (this.enableDashboard && autoInit) {
+      const force = options.dashboardOptions?.force ?? false;
+      this.dashboardReady = this.initDashboard(force);
+    }
+  }
+
+  /**
+   * Initializes the dashboard database
+   * @private
+   */
+  private async initDashboard(force: boolean): Promise<void> {
+    try {
+      await initializeDashboard({ force });
+      console.log("✅ Dashboard initialized");
+    } catch (error) {
+      console.error("❌ Failed to initialize dashboard:", error);
+      console.log("⚠️  Continuing without dashboard...");
+      // Set to resolved promise so subsequent calls don't fail
+      this.dashboardReady = Promise.resolve();
+    }
+  }
+
+  /**
+   * Ensures the dashboard is ready before tracking transactions
+   * @private
+   */
+  private async ensureDashboardReady(): Promise<void> {
+    if (this.dashboardReady) {
+      await this.dashboardReady;
+    }
   }
 
   /**
@@ -195,6 +245,36 @@ export class Facilitator {
       throw Error("Invalid payment");
     }
 
+    // Track verification in dashboard if enabled
+    if (this.enableDashboard && resp.payer) {
+      console.log(paymentPayload);
+      try {
+        // Ensure dashboard is ready before tracking
+        await this.ensureDashboardReady();
+
+        // Extract transaction hash from payload
+        const txHash =
+          (paymentPayload as any).txHash ||
+          (paymentPayload as any).signature ||
+          `verify-${Date.now()}-${resp.payer}`;
+
+        await createTransaction({
+          client: resp.payer,
+          txHash,
+          amount: parseInt(paymentRequirements.maxAmountRequired || "0"),
+          endpoint: paymentRequirements.resource || "unknown",
+          network: requestedNetwork,
+          status: "verified",
+        });
+      } catch (dashboardError) {
+        // Don't fail the payment if dashboard tracking fails
+        console.error(
+          "Failed to track verification in dashboard:",
+          dashboardError
+        );
+      }
+    }
+
     return {
       isValid: resp.isValid,
       payer: resp.payer,
@@ -272,6 +352,40 @@ export class Facilitator {
       paymentRequirements as X402PaymentRequirements,
       undefined
     );
+
+    // Track settlement in dashboard if enabled
+    if (this.enableDashboard) {
+      try {
+        // Ensure dashboard is ready before tracking
+        await this.ensureDashboardReady();
+
+        const txHash = resp.transaction;
+        const status = resp.success ? "settled" : "failed";
+
+        if (resp.payer && txHash) {
+          // Try to update existing transaction first
+          const updated = await updateTransactionStatus(txHash, status);
+
+          // If no existing transaction, create a new one
+          if (!updated) {
+            await createTransaction({
+              client: resp.payer,
+              txHash,
+              amount: parseInt(paymentRequirements.maxAmountRequired || "0"),
+              endpoint: paymentRequirements.resource || "unknown",
+              network: requestedNetwork,
+              status,
+            });
+          }
+        }
+      } catch (dashboardError) {
+        // Don't fail the payment if dashboard tracking fails
+        console.error(
+          "Failed to track settlement in dashboard:",
+          dashboardError
+        );
+      }
+    }
 
     return {
       success: resp.success,
@@ -377,6 +491,61 @@ export class Facilitator {
           status: 400,
           body: {
             error: "Failed to settle payment",
+            message: error instanceof Error ? error.message : "Unknown error",
+          },
+        };
+      }
+    }
+
+    //Get /dashboard
+    if (method === "GET" && path === "/dashboard") {
+      try {
+        const stats = await getDashboardStats();
+        return {
+          status: 200,
+          body: stats,
+        };
+      } catch (error) {
+        return {
+          status: 500,
+          body: {
+            error: "Failed to fetch dashboard stats",
+            message: error instanceof Error ? error.message : "Unknown error",
+          },
+        };
+      }
+    }
+
+    //Get /dashboard/transactions
+    if (method === "GET" && path.includes("/dashboard/transactions")) {
+      try {
+        const urlParts = path.split("?");
+        const searchParams = new URLSearchParams(urlParts[1] || "");
+
+        const limit = parseInt(searchParams.get("limit") || "50") || 50;
+        const offset = parseInt(searchParams.get("offset") || "0") || 0;
+        const status = searchParams.get("status") as
+          | "pending"
+          | "verified"
+          | "settled"
+          | "failed"
+          | null;
+
+        const transactions = await getAllTransactions({
+          limit,
+          offset,
+          status: status || undefined,
+        });
+
+        return {
+          status: 200,
+          body: transactions,
+        };
+      } catch (error) {
+        return {
+          status: 500,
+          body: {
+            error: "Failed to fetch transactions",
             message: error instanceof Error ? error.message : "Unknown error",
           },
         };

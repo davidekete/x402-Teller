@@ -88,5 +88,39 @@ export function createExpressAdapter(
       });
     }
   });
+
+  router.get(normalizePath("/dashboard"), async (req: Request, res: Response) => {
+    try {
+      const response = await facilitator.handleRequest({
+        method: "GET",
+        path: "/dashboard",
+      });
+      res.status(response.status).json(response.body);
+    } catch (error) {
+      res.status(500).json({
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
+
+  router.get(normalizePath("/dashboard/transactions"), async (req: Request, res: Response) => {
+    try {
+      // Build query string from request query parameters
+      const queryString = new URLSearchParams(req.query as any).toString();
+      const path = queryString ? `/dashboard/transactions?${queryString}` : "/dashboard/transactions";
+
+      const response = await facilitator.handleRequest({
+        method: "GET",
+        path,
+      });
+      res.status(response.status).json(response.body);
+    } catch (error) {
+      res.status(500).json({
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
 }
 

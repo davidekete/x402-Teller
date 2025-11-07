@@ -41,6 +41,11 @@ const facilitator = new Facilitator({
   solanaPrivateKey,
   solanaFeePayer: "4XSRdDViZH2CPjLqF3M4eDmE1UPHfsjg49m86PMNdZAw", // Your Solana public address
   networks: ["solana-devnet"],
+  enableDashboard: true, // Enable transaction tracking
+  dashboardOptions: {
+    force: true, // Reset database on startup (DEVELOPMENT ONLY)
+    autoInit: true, // Auto-initialize dashboard (default: true)
+  },
 });
 
 // Add facilitator endpoints using the Express adapter
@@ -118,21 +123,24 @@ app.use(
 // Example: A simple route
 app.get("/", (req, res) => {
   res.json({
-    message: "X402 Sovereign Facilitator - Express Example",
+    message: "x402-Teller - Express Example",
     endpoints: {
       supported: "GET /facilitator/supported",
       verify: "POST /facilitator/verify",
       settle: "POST /facilitator/settle",
+      dashboard: "GET /facilitator/dashboard",
     },
   });
 });
 
 // Implement your protected route
-app.get("/protected-route", (req, res) => {
+app.get("/protected-route", (_req, res) => {
   res.json({ message: "This content is behind a paywall" });
 });
 
 const PORT = process.env.PORT || 3002;
+
+// Start server
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
   console.log(
