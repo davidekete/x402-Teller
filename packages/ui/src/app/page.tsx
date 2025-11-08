@@ -5,18 +5,61 @@ import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { getCsrfToken, signIn, signOut, useSession } from "next-auth/react";
+import { SigninMessage } from "../../utils/sign-in";
+import bs58 from "bs58";
+import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 
 export default function Home() {
-  const { publicKey, connected } = useWallet();
+  const { publicKey, connected, signMessage } = useWallet();
   const router = useRouter();
+  const walletModal = useWalletModal();
+  const { data: session, status } = useSession();
 
-  // Redirect to dashboard or main app when connected
   useEffect(() => {
-    if (connected && publicKey) {
-      // Optional: redirect to a dashboard or main app page
-      // router.push('/dashboard')
+    if (connected && publicKey && !session) {
+      console.log("Wallet connected, prompting sign-in...");
+      handleSignIn();
     }
-  }, [connected, publicKey, router]);
+  }, [connected, publicKey, session]);
+
+  // Effect 2: Redirect when authenticated
+  useEffect(() => {
+    if (session) {
+      console.log("User authenticated, redirecting...");
+      router.push("/dashboard");
+    }
+  }, [session, router]);
+
+  const handleSignIn = async () => {
+    try {
+      if (!connected) {
+        walletModal.setVisible(true);
+      }
+
+      const csrf = await getCsrfToken();
+      if (!publicKey || !csrf || !signMessage) return;
+
+      const message = new SigninMessage({
+        domain: window.location.host,
+        publicKey: publicKey?.toBase58(),
+        statement: `Sign this message to view your dashboard`,
+        nonce: csrf,
+      });
+
+      const data = new TextEncoder().encode(message.prepare());
+      const signature = await signMessage(data);
+      const serializedSignature = bs58.encode(signature);
+
+      signIn("credentials", {
+        message: JSON.stringify(message),
+        redirect: false,
+        signature: serializedSignature,
+      });
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#171717] relative overflow-hidden flex items-center justify-center">
