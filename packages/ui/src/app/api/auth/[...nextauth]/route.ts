@@ -46,17 +46,44 @@ export const authOptions: NextAuthOptions = {
           const backendUrl = process.env.BACKEND_URL || "http://localhost:3002";
           try {
             const publicKeysResponse = await fetch(
-              `${backendUrl}/facilitator/public-keys`
+              `${backendUrl}/facilitator/public-keys`,
+              {
+                headers: {
+                  "Content-Type": "application/json",
+                },
+              }
             );
-            const { solanaPublicKey } = await publicKeysResponse.json();
+
+            if (!publicKeysResponse.ok) {
+              console.error(
+                `Backend error: ${publicKeysResponse.status} ${publicKeysResponse.statusText}`
+              );
+              throw new Error(
+                `Backend server error: ${publicKeysResponse.status}`
+              );
+            }
+
+            const data = await publicKeysResponse.json();
+            const { solanaPublicKey } = data;
+
+            if (!solanaPublicKey) {
+              console.error("Backend did not return a Solana public key");
+              throw new Error("Invalid backend response");
+            }
 
             if (signinMessage.publicKey !== solanaPublicKey) {
+              console.error(
+                `Wallet mismatch: ${signinMessage.publicKey} !== ${solanaPublicKey}`
+              );
               throw new Error(
                 "Unauthorized: Only the facilitator wallet can access the dashboard"
               );
             }
           } catch (error) {
             console.error("Failed to verify facilitator wallet:", error);
+            if (error instanceof Error) {
+              console.error("Error details:", error.message);
+            }
             return null;
           }
 
@@ -77,25 +104,20 @@ export const authOptions: NextAuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
-    // THIS IS WHERE YOU CONTROL WHAT GOES INTO THE SESSION
     async session({ session, token }) {
       // Add custom data from token to session
       session.user = {
-        //@ts-ignore
-        walletAddress: token.walletAddress as string,
+        walletAddress: token.walletAddress,
         image: `https://ui-avatars.com/api/?name=${token.walletAddress}&background=random`,
-        signedAt: token.signedAt as string,
+        signedAt: token.signedAt,
       };
       return session;
     },
     async jwt({ token, user }) {
       // When user signs in, add custom data to token
       if (user) {
-        // @ts-ignore
         token.publicKey = user.walletAddress;
-        // @ts-ignore
         token.walletAddress = user.walletAddress;
-        // @ts-ignore
         token.signedAt = user.signedAt;
       }
       return token;
