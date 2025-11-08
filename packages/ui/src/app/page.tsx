@@ -42,13 +42,13 @@ export default function Home() {
             Sign In
           </h1>
 
-          <p className="font-inter text-gray-400 text-base">
+          <p className="text-gray-400 text-base">
             Connect your solana wallet address to continue
           </p>
         </div>
 
         {/* Custom styled wallet button */}
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center">
           <div className="group relative">
             <div className="absolute -top-2 -left-2 w-4 h-4 border-t-2 border-l-2 border-[#202020] rounded-tl-[12px] group-hover:-left-3 group-hover:-top-3 group-hover:border-white transition-all duration-500" />
 
@@ -108,6 +108,15 @@ export default function Home() {
             </div>
           </div>
         </div>
+
+        <span>
+          <p className="text-gray-400">
+            Don’t have an account?{" "}
+            <a href="#" className="text-blue-500">
+              Sign up
+            </a>
+          </p>
+        </span>
       </div>
     </div>
   );
