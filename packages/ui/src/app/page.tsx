@@ -62,30 +62,30 @@ export default function Home() {
               <Image
                 src="/solflare.svg"
                 alt="Solflare Logo"
-                width={40}
-                height={40}
-                className="rounded-full z-20 absolute -top-14 -left-6 group-hover:left-0 group-hover:-top-2 transition-all duration-500 -rotate-6"
+                width={45}
+                height={45}
+                className="rounded-full z-20 absolute -top-14 -left-6 group-hover:left-0 group-hover:-top-2 transition-all duration-500 -rotate-12"
               />
               <Image
                 src="/phantom.svg"
                 alt="Phantom Logo"
-                width={40}
-                height={40}
-                className="z-10 absolute -bottom-14 -left-0 group-hover:left-5 group-hover:-bottom-2 transition-all duration-500"
+                width={45}
+                height={45}
+                className="z-10 absolute -bottom-14 -left-0 group-hover:left-8 group-hover:-bottom-2 transition-all duration-500"
               />
               <Image
                 src="/phantom.svg"
                 alt="Phantom Logo"
-                width={40}
-                height={40}
+                width={45}
+                height={45}
                 className="z-20 absolute -top-14 -right-6 group-hover:right-0 group-hover:-top-2 transition-all duration-500 rotate-12"
               />
               <Image
                 src="/solflare.svg"
                 alt="Solflare Logo"
-                width={40}
-                height={40}
-                className=" rounded-full z-10 absolute -bottom-14 -right-0 group-hover:right-5 group-hover:-bottom-2 transition-all duration-500"
+                width={45}
+                height={45}
+                className="rounded-full z-10 absolute -bottom-14 -right-0 group-hover:right-8 group-hover:-bottom-2 transition-all duration-500"
               />
 
               <WalletMultiButton
