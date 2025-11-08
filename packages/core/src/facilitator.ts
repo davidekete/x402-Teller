@@ -1,5 +1,8 @@
 import type { Chain } from "viem";
 import { toX402Network, isSolanaNetwork } from "./utils";
+import { privateKeyToAccount } from "viem/accounts";
+import { Keypair } from "@solana/web3.js";
+import bs58 from "bs58";
 
 import { verify as x402Verify, settle as x402Settle } from "x402/facilitator";
 
@@ -96,6 +99,10 @@ export class Facilitator {
   private readonly enableDashboard: boolean;
   private dashboardReady: Promise<void> | null = null;
 
+  // Public keys derived from private keys
+  public evmPublicKey?: string;
+  public solanaPublicKey?: string;
+
   constructor(options: CreateFacilitatorOptions) {
     if (!options.evmPrivateKey && !options.solanaPrivateKey) {
       throw new Error(
@@ -125,12 +132,44 @@ export class Facilitator {
       options.minConfirmations ?? DEFAULT_MIN_CONFIRMATIONS;
     this.enableDashboard = options.enableDashboard ?? false;
 
+    // Derive and store public keys from private keys
+    if (this.evmPrivateKey) {
+      this.evmPublicKey = this.deriveEvmPublicKey(this.evmPrivateKey);
+    }
+    if (this.solanaPrivateKey) {
+      this.solanaPublicKey = this.deriveSolanaPublicKey(this.solanaPrivateKey);
+    }
+
     // Auto-initialize dashboard if enabled and autoInit is true (default)
     const autoInit = options.dashboardOptions?.autoInit ?? true;
     if (this.enableDashboard && autoInit) {
       const force = options.dashboardOptions?.force ?? false;
       this.dashboardReady = this.initDashboard(force);
     }
+  }
+
+  /**
+   * Derives the EVM public address from a private key
+   * @private
+   */
+  private deriveEvmPublicKey(privateKey: string): string {
+    const account = privateKeyToAccount(privateKey as `0x${string}`);
+    return account.address;
+  }
+
+  /**
+   * Derives the Solana public key from a private key
+   * @private
+   */
+  private deriveSolanaPublicKey(privateKey: string): string {
+    // Decode the base58 private key to bytes
+    const secretKey = bs58.decode(privateKey);
+
+    // Create a keypair from the secret key
+    const keypair = Keypair.fromSecretKey(secretKey);
+
+    // Return the public key as a base58 string
+    return keypair.publicKey.toBase58();
   }
 
   /**
@@ -400,7 +439,8 @@ export class Facilitator {
    * handleRequest()
    *
    * Framework-agnostic HTTP request handler for facilitator endpoints.
-   * Handles GET /supported, POST /verify, and POST /settle.
+   * Handles GET /supported, GET /public-keys, POST /verify, POST /settle,
+   * GET /dashboard, and GET /dashboard/transactions.
    *
    * Returns a standard { status, body } response that can be used with any framework.
    *
@@ -434,6 +474,17 @@ export class Facilitator {
       return {
         status: 200,
         body: this.listSupportedKinds(),
+      };
+    }
+
+    // GET /public-keys
+    if (method === "GET" && path === "/public-keys") {
+      return {
+        status: 200,
+        body: {
+          evmPublicKey: this.evmPublicKey,
+          solanaPublicKey: this.solanaPublicKey,
+        },
       };
     }
 
