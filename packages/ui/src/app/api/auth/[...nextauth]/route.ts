@@ -42,6 +42,24 @@ export const authOptions: NextAuthOptions = {
             throw new Error("Could not validate the signed message");
           }
 
+          // Verify the signer is the facilitator's wallet
+          const backendUrl = process.env.BACKEND_URL || "http://localhost:3002";
+          try {
+            const publicKeysResponse = await fetch(
+              `${backendUrl}/facilitator/public-keys`
+            );
+            const { solanaPublicKey } = await publicKeysResponse.json();
+
+            if (signinMessage.publicKey !== solanaPublicKey) {
+              throw new Error(
+                "Unauthorized: Only the facilitator wallet can access the dashboard"
+              );
+            }
+          } catch (error) {
+            console.error("Failed to verify facilitator wallet:", error);
+            return null;
+          }
+
           // Return whatever data you want in the session
           return {
             id: signinMessage.publicKey,

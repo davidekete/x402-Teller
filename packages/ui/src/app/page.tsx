@@ -16,14 +16,7 @@ export default function Home() {
   const walletModal = useWalletModal();
   const { data: session, status } = useSession();
 
-  useEffect(() => {
-    if (connected && publicKey && !session) {
-      console.log("Wallet connected, prompting sign-in...");
-      handleSignIn();
-    }
-  }, [connected, publicKey, session]);
-
-  // Effect 2: Redirect when authenticated
+  // Effect: Redirect when authenticated
   useEffect(() => {
     if (session) {
       console.log("User authenticated, redirecting...");
@@ -131,35 +124,50 @@ export default function Home() {
                 className="rounded-full z-10 absolute -bottom-14 -right-0 group-hover:right-8 group-hover:-bottom-2 transition-all duration-500"
               />
 
-              <WalletMultiButton
-                style={{
-                  backgroundColor: "#202020",
-                  color: "white",
-                  fontSize: "18px",
-                  fontWeight: "500",
-                  padding: "14px 32px",
-                  borderRadius: "8px",
-                  border: "none",
-                  transition: "all 0.2s",
-                  height: "54px",
-                  width: "360px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              />
+              {!connected ? (
+                <WalletMultiButton
+                  style={{
+                    backgroundColor: "#202020",
+                    color: "white",
+                    fontSize: "18px",
+                    fontWeight: "500",
+                    padding: "14px 32px",
+                    borderRadius: "8px",
+                    border: "none",
+                    transition: "all 0.2s",
+                    height: "54px",
+                    width: "360px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                />
+              ) : !session ? (
+                <button
+                  onClick={handleSignIn}
+                  style={{
+                    backgroundColor: "#202020",
+                    color: "white",
+                    fontSize: "18px",
+                    fontWeight: "500",
+                    padding: "14px 32px",
+                    borderRadius: "8px",
+                    border: "none",
+                    transition: "all 0.2s",
+                    height: "54px",
+                    width: "360px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                  }}
+                >
+                  Sign In
+                </button>
+              ) : null}
             </div>
           </div>
         </div>
-
-        <span>
-          <p className="text-gray-400">
-            Don’t have an account?{" "}
-            <a href="#" className="text-blue-500">
-              Sign up
-            </a>
-          </p>
-        </span>
       </div>
     </div>
   );
