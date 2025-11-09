@@ -11,6 +11,7 @@ config();
 
 // Validate environment variables
 const solanaPrivateKey = process.env.SVM_PRIVATE_KEY?.trim();
+const solanaPublicKey = process.env.SVM_PUBLIC_KEY?.trim();
 if (!solanaPrivateKey) {
   console.error(
     "❌ Error: SVM_PRIVATE_KEY environment variable is not set or is empty"
@@ -49,7 +50,7 @@ const payWallRoutes: RoutesConfig = {
 
 const facilitator = new Facilitator({
   solanaPrivateKey,
-  solanaFeePayer: "4XSRdDViZH2CPjLqF3M4eDmE1UPHfsjg49m86PMNdZAw", // Your Solana public address
+  solanaFeePayer: solanaPublicKey, // Your Solana public address
   networks: ["solana-devnet"],
   enableDashboard: true, // Enable transaction tracking
   dashboardOptions: {
@@ -65,13 +66,9 @@ createExpressAdapter(facilitator, app, "/facilitator");
 
 // Configure the payment middleware
 app.use(
-  paymentMiddleware(
-    "4XSRdDViZH2CPjLqF3M4eDmE1UPHfsjg49m86PMNdZAw" as SolanaAddress,
-    payWallRoutes,
-    {
-      url: "http://localhost:3002/facilitator",
-    }
-  )
+  paymentMiddleware(solanaPublicKey as SolanaAddress, payWallRoutes, {
+    url: "http://localhost:3002/facilitator",
+  })
 );
 
 // Example: A simple route
