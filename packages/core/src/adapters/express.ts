@@ -45,35 +45,41 @@ export function createExpressAdapter(
     return normalized || "/";
   };
 
-  router.get(normalizePath("/supported"), async (req: Request, res: Response) => {
-    try {
-      const response = await facilitator.handleRequest({
-        method: "GET",
-        path: "/supported",
-      });
-      res.status(response.status).json(response.body);
-    } catch (error) {
-      res.status(500).json({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
-      });
+  router.get(
+    normalizePath("/supported"),
+    async (req: Request, res: Response) => {
+      try {
+        const response = await facilitator.handleRequest({
+          method: "GET",
+          path: "/supported",
+        });
+        res.status(response.status).json(response.body);
+      } catch (error) {
+        res.status(500).json({
+          error: "Internal server error",
+          message: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
     }
-  });
+  );
 
-  router.get(normalizePath("/public-keys"), async (req: Request, res: Response) => {
-    try {
-      const response = await facilitator.handleRequest({
-        method: "GET",
-        path: "/public-keys",
-      });
-      res.status(response.status).json(response.body);
-    } catch (error) {
-      res.status(500).json({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
-      });
+  router.get(
+    normalizePath("/public-keys"),
+    async (req: Request, res: Response) => {
+      try {
+        const response = await facilitator.handleRequest({
+          method: "GET",
+          path: "/public-keys",
+        });
+        res.status(response.status).json(response.body);
+      } catch (error) {
+        res.status(500).json({
+          error: "Internal server error",
+          message: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
     }
-  });
+  );
 
   router.post(normalizePath("/verify"), async (req: Request, res: Response) => {
     try {
@@ -107,38 +113,63 @@ export function createExpressAdapter(
     }
   });
 
-  router.get(normalizePath("/dashboard"), async (req: Request, res: Response) => {
-    try {
-      const response = await facilitator.handleRequest({
-        method: "GET",
-        path: "/dashboard",
-      });
-      res.status(response.status).json(response.body);
-    } catch (error) {
-      res.status(500).json({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
-      });
+  router.get(
+    normalizePath("/dashboard"),
+    async (req: Request, res: Response) => {
+      try {
+        const response = await facilitator.handleRequest({
+          method: "GET",
+          path: "/dashboard",
+        });
+        res.status(response.status).json(response.body);
+      } catch (error) {
+        res.status(500).json({
+          error: "Internal server error",
+          message: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
     }
-  });
+  );
 
-  router.get(normalizePath("/dashboard/transactions"), async (req: Request, res: Response) => {
-    try {
-      // Build query string from request query parameters
-      const queryString = new URLSearchParams(req.query as any).toString();
-      const path = queryString ? `/dashboard/transactions?${queryString}` : "/dashboard/transactions";
+  router.get(
+    normalizePath("/dashboard/transactions"),
+    async (req: Request, res: Response) => {
+      try {
+        // Build query string from request query parameters
+        const queryString = new URLSearchParams(req.query as any).toString();
+        const path = queryString
+          ? `/dashboard/transactions?${queryString}`
+          : "/dashboard/transactions";
 
-      const response = await facilitator.handleRequest({
-        method: "GET",
-        path,
-      });
-      res.status(response.status).json(response.body);
-    } catch (error) {
-      res.status(500).json({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
-      });
+        const response = await facilitator.handleRequest({
+          method: "GET",
+          path,
+        });
+        res.status(response.status).json(response.body);
+      } catch (error) {
+        res.status(500).json({
+          error: "Internal server error",
+          message: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
     }
-  });
+  );
+
+  router.get(
+    normalizePath("/dashboard/endpoints"),
+    async (req: Request, res: Response) => {
+      try {
+        const response = await facilitator.handleRequest({
+          method: "GET",
+          path: "/dashboard/endpoints",
+        });
+        res.status(response.status).json(response.body);
+      } catch (error) {
+        res.status(500).json({
+          error: "Internal server error",
+          message: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    }
+  );
 }
-

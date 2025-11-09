@@ -18,6 +18,7 @@ import type {
   PaymentRequirements as X402PaymentRequirements,
   VerifyResponse as X402VerifyResponse,
   SettleResponse as X402SettleResponse,
+  RoutesConfig,
 } from "x402/types";
 
 // Dashboard imports (optional)
@@ -26,6 +27,7 @@ import {
   getAllTransactions,
   getDashboardStats,
   updateTransactionStatus,
+  getEndpointStats,
 } from "./dashboard/utils/record";
 import { initializeDashboard } from "./dashboard";
 
@@ -64,6 +66,7 @@ export interface CreateFacilitatorOptions {
     force?: boolean; // If true, drops existing tables and recreates them (DEVELOPMENT ONLY)
     autoInit?: boolean; // If true, automatically initializes dashboard on Facilitator creation (default: true)
   };
+  payWallRouteConfig?: RoutesConfig;
 }
 
 export const DEFAULT_MIN_CONFIRMATIONS = 1;
@@ -97,6 +100,7 @@ export class Facilitator {
   private readonly networks: (Chain | SolanaNetwork)[];
   private readonly minConfirmations: number;
   private readonly enableDashboard: boolean;
+  private readonly payWallRoutes?: RoutesConfig;
   private dashboardReady: Promise<void> | null = null;
 
   // Public keys derived from private keys
@@ -131,6 +135,14 @@ export class Facilitator {
     this.minConfirmations =
       options.minConfirmations ?? DEFAULT_MIN_CONFIRMATIONS;
     this.enableDashboard = options.enableDashboard ?? false;
+    this.payWallRoutes = options.payWallRouteConfig;
+
+    // Validate that if dashboard is enabled, paywall routes must be provided
+    if (this.enableDashboard && !this.payWallRoutes) {
+      throw new Error(
+        "Facilitator: payWallRouteConfig is required when enableDashboard is true. "
+      );
+    }
 
     // Derive and store public keys from private keys
     if (this.evmPrivateKey) {
@@ -186,6 +198,85 @@ export class Facilitator {
       // Set to resolved promise so subsequent calls don't fail
       this.dashboardReady = Promise.resolve();
     }
+  }
+
+  /**
+   * Returns all configured paywall routes/endpoints with usage statistics
+   *
+   * @param timeframe - Optional timeframe for filtering statistics (e.g. '24h', '7d', '30d', 'all')
+   * @returns Object containing array of paywall endpoints with their configuration and usage stats
+   */
+  public async getPaywallEndpoints(timeframe: string = "all") {
+    if (!this.payWallRoutes) {
+      return {
+        endpoints: [],
+        message: "No paywall routes configured",
+      };
+    }
+
+    // Get usage statistics from database
+    let usageStats: Awaited<ReturnType<typeof getEndpointStats>> = [];
+    try {
+      await this.ensureDashboardReady();
+      usageStats = await getEndpointStats(timeframe);
+    } catch (error) {
+      console.error("Error fetching endpoint stats:", error);
+      // Continue with empty stats if dashboard is not available
+    }
+
+    // Create a map of endpoint stats for quick lookup
+    const statsMap = new Map(
+      usageStats.map((stat) => [stat.endpointPath, stat])
+    );
+
+    // Merge static configuration with usage statistics
+    const endpoints = Object.entries(this.payWallRoutes).map(
+      ([path, config]) => {
+        // Type guard: check if config is a RouteConfig object (has price and network properties)
+        const isRouteConfig =
+          typeof config === 'object' &&
+          config !== null &&
+          'price' in config &&
+          'network' in config;
+
+        // Get usage stats for this endpoint (if available)
+        const stats = statsMap.get(path);
+
+        // Build endpoint object with config and stats
+        const endpoint: any = {
+          endpointPath: path,
+          // Usage statistics (default to 0 if no data)
+          numberOfCalls: stats?.numberOfCalls || 0,
+          successfulCalls: stats?.successfulCalls || 0,
+          failedCalls: stats?.failedCalls || 0,
+          totalRevenue: stats?.totalRevenue || 0,
+          averageAmount: stats?.averageAmount || 0,
+          lastAccessed: stats?.lastAccessed || null,
+        };
+
+        // Add static configuration
+        if (isRouteConfig) {
+          endpoint.price = config.price;
+          endpoint.network = config.network;
+          endpoint.description = config.config?.description || "";
+        } else {
+          // Handle primitive types (string, number) or token amounts
+          endpoint.price = String(config);
+          endpoint.network = "unknown";
+          endpoint.description = "";
+        }
+
+        return endpoint;
+      }
+    );
+
+    // Sort by number of calls (descending)
+    endpoints.sort((a, b) => b.numberOfCalls - a.numberOfCalls);
+
+    return {
+      endpoints,
+      totalCount: endpoints.length,
+    };
   }
 
   /**
@@ -562,6 +653,30 @@ export class Facilitator {
           body: {
             error: "Failed to fetch dashboard stats",
             message: error instanceof Error ? error.message : "Unknown error",
+          },
+        };
+      }
+    }
+
+    //GET /dashboard/endpoints
+    if (method === "GET" && path.includes("/dashboard/endpoints")) {
+      try {
+        // Parse query parameters for timeframe
+        const url = new URL(path, "http://localhost");
+        const timeframe = url.searchParams.get("timeframe") || "all";
+
+        const result = await this.getPaywallEndpoints(timeframe);
+        return {
+          status: 200,
+          body: result,
+        };
+      } catch (error: any) {
+        console.error("Error fetching paywall endpoints:", error);
+        return {
+          status: 500,
+          body: {
+            error: "Failed to fetch paywall endpoints",
+            message: error.message,
           },
         };
       }
