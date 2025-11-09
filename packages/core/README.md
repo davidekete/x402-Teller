@@ -1,27 +1,45 @@
 # `@x402-sovereign/core`
 
-Self-hosted x402 facilitator.
+Self-hosted x402 payment facilitator with multi-chain support.
 
-This package lets an API seller run their own x402 facilitator instead of pointing `paymentMiddleware` at Coinbase.
+This package lets API sellers run their own x402 facilitator instead of relying on third-party services like Coinbase. It supports both Solana and EVM networks with built-in transaction tracking and dashboard capabilities.
 
-When you run this, you become the thing that:
-- tells the middleware which networks you support (`/supported`)
-- verifies a buyer’s signed payment intent (`/verify`)
-- settles that intent on-chain by pulling funds from the buyer (`/settle`)
+**What this package provides:**
 
-No external facilitator. No Coinbase account. Your own infra.
+- Payment verification and on-chain settlement
+- Multi-chain support (Solana mainnet/devnet, Base, Base Sepolia, and other EVM networks)
+- Transaction tracking with database models (Sequelize ORM)
+- Dashboard endpoints for analytics and transaction history
+- Public key endpoints for wallet-based authentication
+- Framework adapters for Express and Hono
+
+**Core endpoints:**
+
+- `GET /supported` - Lists supported payment networks
+- `GET /public-keys` - Returns facilitator's public keys
+- `POST /verify` - Verifies buyer's signed payment intent
+- `POST /settle` - Settles payment on-chain
+- `GET /dashboard` - Returns transaction statistics
+- `GET /dashboard/transactions` - Returns paginated transaction history
+
+No external facilitator. No third-party dependencies. Your own infrastructure.
 
 ---
 
-## What this gives you
+## Installation
 
-- **Drop-in replacement for Coinbase’s facilitator URL**  
-  You point `paymentMiddleware` at _your_ server instead of theirs.
+```bash
+npm install @x402-sovereign/core
+# or
+bun add @x402-sovereign/core
+```
 
-- **EVM-only for now (Base / Base Sepolia etc.)**
+**Peer Dependencies:**
 
-- **Framework adapters included**  
-  Built-in adapters for Hono and Express. Or use the framework-agnostic core with any HTTP server.
+- `express` (optional) - if using Express adapter
+- `hono` (optional) - if using Hono adapter
+- `viem` - for EVM networks
+- `@solana/web3.js` - for Solana networks
 
 ---
 
@@ -29,7 +47,28 @@ No external facilitator. No Coinbase account. Your own infra.
 
 ### Option 1: Using Built-in Adapters (Recommended)
 
-**With Hono:**
+#### With Express (Solana)
+
+```ts
+import express from "express";
+import { Facilitator, createExpressAdapter } from "@x402-sovereign/core";
+
+const app = express();
+app.use(express.json());
+
+const facilitator = new Facilitator({
+  solanaPrivateKey: process.env.SOLANA_PRIVATE_KEY!,
+  solanaPublicKey: process.env.SOLANA_PUBLIC_KEY!,
+  networks: ["solana-devnet"], // or "solana-mainnet"
+});
+
+// Mounts all facilitator endpoints at /facilitator
+createExpressAdapter(facilitator, app, "/facilitator");
+
+app.listen(3000, () => console.log("Facilitator running on :3000"));
+```
+
+#### With Hono (EVM)
 
 ```ts
 import { Hono } from "hono";
@@ -40,137 +79,308 @@ const app = new Hono();
 
 const facilitator = new Facilitator({
   evmPrivateKey: process.env.EVM_PRIVATE_KEY as `0x${string}`,
-  networks: [baseSepolia],
+  networks: [baseSepolia], // or base, mainnet, etc.
 });
 
-// Mounts GET /facilitator/supported, POST /facilitator/verify, POST /facilitator/settle
+// Mounts all facilitator endpoints at /facilitator
 createHonoAdapter(facilitator, app, "/facilitator");
-```
 
-**With Express:**
-
-```ts
-import express from "express";
-import { Facilitator, createExpressAdapter } from "@x402-sovereign/core";
-import { baseSepolia } from "viem/chains";
-
-const app = express();
-app.use(express.json());
-
-const facilitator = new Facilitator({
-  evmPrivateKey: process.env.EVM_PRIVATE_KEY as `0x${string}`,
-  networks: [baseSepolia],
-});
-
-// Mounts GET /facilitator/supported, POST /facilitator/verify, POST /facilitator/settle
-createExpressAdapter(facilitator, app, "/facilitator");
+export default app;
 ```
 
 ### Option 2: Manual Setup (Any Framework)
 
+If you're using a different framework or want more control, you can use the Facilitator methods directly:
+
 ```ts
 import { Facilitator } from "@x402-sovereign/core";
-import { baseSepolia } from "viem/chains";
 
 const facilitator = new Facilitator({
-  evmPrivateKey: process.env.EVM_PRIVATE_KEY as `0x${string}`,
-  networks: [baseSepolia],
+  solanaPrivateKey: process.env.SOLANA_PRIVATE_KEY!,
+  solanaPublicKey: process.env.SOLANA_PUBLIC_KEY!,
+  networks: ["solana-devnet"],
 });
 
-// Expose three routes in your server:
+// Map these methods to your routes:
 
 // GET /supported
-facilitator.listSupportedKinds()
+const supported = facilitator.listSupportedKinds();
 
-// POST /verify   { paymentPayload, paymentRequirements }
-await facilitator.verifyPayment(paymentPayload, paymentRequirements)
+// GET /public-keys
+const publicKeys = facilitator.getPublicKeys();
 
-// POST /settle   { paymentPayload, paymentRequirements }
-await facilitator.settlePayment(paymentPayload, paymentRequirements)
+// POST /verify
+const result = await facilitator.verifyPayment(paymentPayload, paymentRequirements);
+
+// POST /settle
+const settlement = await facilitator.settlePayment(paymentPayload, paymentRequirements);
+
+// GET /dashboard
+const stats = await facilitator.getDashboardStats();
+
+// GET /dashboard/transactions?limit=20&offset=0
+const transactions = await facilitator.getTransactions(20, 0);
 ```
 
-Then configure `paymentMiddleware` with your own facilitator URL:
+### Configuring Your API
+
+Point your `paymentMiddleware` to use your facilitator:
 
 ```ts
+import { paymentMiddleware } from "x402-hono"; // or x402-express
+
 paymentMiddleware(
-  "0xYourReceivingAddress",
+  "your_receiving_address", // Your wallet address
   {
     "/protected-route": {
       price: "$0.10",
-      network: "base-sepolia",
+      network: "solana-devnet", // or "base-sepolia"
       config: { description: "Premium content" },
     },
   },
   {
-    url: "http://localhost:3000/facilitator",
+    url: "http://localhost:3000/facilitator", // Your facilitator URL
   }
 );
 ```
 
-After that:
-- clients hitting `/protected-route` see the normal x402 payment flow
-- your server calls **your** facilitator
-- settlement happens with **your** key on-chain
-- Coinbase is not in the loop
+Now when clients hit `/protected-route`:
+- They see the x402 payment flow
+- Your facilitator verifies and settles the payment
+- Settlement happens with **your** key on-chain
+- No third-party services involved
 
 ---
 
-## API
+## API Reference
 
-### `new Facilitator({ evmPrivateKey, networks, minConfirmations? })`
+### Constructor
 
-- `evmPrivateKey`: EVM private key used to settle payments (this account pays gas and receives funds)
-- `networks`: array of viem `Chain` objects you want to support (e.g. `baseSepolia`)
-- `minConfirmations` (optional): planned, not enforced yet
+#### For Solana Networks
 
-### `listSupportedKinds(): { kinds: { x402Version: 1; scheme: "exact"; network: string; }[] }`
+```ts
+new Facilitator({
+  solanaPrivateKey: string;    // Base58-encoded private key
+  solanaPublicKey: string;     // Base58-encoded public key
+  networks: string[];          // e.g., ["solana-devnet", "solana-mainnet"]
+  minConfirmations?: number;   // Optional (not enforced yet)
+})
+```
 
-Used for `/supported`.
+#### For EVM Networks
 
-### `verifyPayment(paymentPayload, paymentRequirements)`
+```ts
+new Facilitator({
+  evmPrivateKey: `0x${string}`; // Hex-encoded private key
+  networks: Chain[];             // Viem Chain objects (e.g., baseSepolia)
+  minConfirmations?: number;     // Optional (not enforced yet)
+})
+```
 
-Calls x402’s `verify(...)` under the hood.  
-Returns `{ valid: boolean }` (is the buyer’s signed intent acceptable).
+### Methods
 
-Used for `/verify`.
+#### `listSupportedKinds()`
 
-### `settlePayment(paymentPayload, paymentRequirements)`
+Returns the list of supported payment networks and kinds.
 
-Calls x402’s `settle(...)` under the hood.  
-Broadcasts the settlement tx on-chain using your key.  
-Returns `{ settled: boolean; txHash?: string }`.
+**Returns:** `{ kinds: Array<{ x402Version: 1; scheme: "exact"; network: string }> }`
 
-Used for `/settle`.
+**Used for:** `GET /supported`
 
 ---
 
-## Security
+#### `getPublicKeys()`
 
-- The key you pass in (`evmPrivateKey`) is hot. Treat this like a hot wallet.
-- That key pays gas and pulls funds from buyers using their signed authorization.
-- Do not commit it. Load it from env / KMS.
+Returns the facilitator's public keys for authentication verification.
+
+**Returns:** `{ solana?: string; evm?: string }`
+
+**Used for:** `GET /public-keys`
+
+---
+
+#### `verifyPayment(paymentPayload, paymentRequirements)`
+
+Verifies that a buyer's signed payment intent is valid without executing the settlement.
+
+**Parameters:**
+- `paymentPayload` - The payment data from the buyer
+- `paymentRequirements` - The expected payment requirements
+
+**Returns:** `Promise<{ valid: boolean }>`
+
+**Used for:** `POST /verify`
+
+---
+
+#### `settlePayment(paymentPayload, paymentRequirements)`
+
+Executes the payment settlement on-chain using your private key.
+
+**Parameters:**
+- `paymentPayload` - The payment data from the buyer
+- `paymentRequirements` - The expected payment requirements
+
+**Returns:** `Promise<{ settled: boolean; txHash?: string }>`
+
+**Used for:** `POST /settle`
+
+---
+
+#### `getDashboardStats()`
+
+Returns aggregated statistics about all transactions.
+
+**Returns:**
+```ts
+Promise<{
+  totalTransactions: number;
+  successfulTransactions: number;
+  failedTransactions: number;
+  totalVolume: string;
+  successRate: number;
+}>
+```
+
+**Used for:** `GET /dashboard`
+
+---
+
+#### `getTransactions(limit?, offset?)`
+
+Returns paginated transaction history.
+
+**Parameters:**
+- `limit` (optional) - Number of transactions to return (default: 20)
+- `offset` (optional) - Number of transactions to skip (default: 0)
+
+**Returns:** `Promise<Transaction[]>`
+
+**Used for:** `GET /dashboard/transactions`
+
+---
+
+## Transaction Tracking
+
+The facilitator automatically tracks all payment transactions in a database using Sequelize ORM. Transaction records include:
+
+- Payment ID and timestamp
+- Network and amount
+- Buyer and seller addresses
+- Transaction hash
+- Status (pending, verified, settled, failed)
+- Error messages (if any)
+
+**Database Support:**
+- SQLite (default, for development)
+- PostgreSQL (recommended for production)
+
+Configure the database connection via environment variables or pass a Sequelize instance to the Facilitator constructor.
 
 ---
 
 ## Framework Adapters
 
-Built-in adapters are available for popular frameworks. See [ADAPTERS.md](./ADAPTERS.md) for details:
+Built-in adapters automatically mount all facilitator endpoints:
 
-- **Hono**: `createHonoAdapter(facilitator, app, basePath)`
-- **Express**: `createExpressAdapter(facilitator, router, basePath)`
-- **Custom**: Use `facilitator.handleRequest()` for any other framework
+### Hono Adapter
 
-## Examples
+```ts
+import { createHonoAdapter } from "@x402-sovereign/core";
 
-- **Hono Example**: [`../example-hono/`](../example-hono/)
-- **Express Example**: [`../example-express/`](../example-express/)
+createHonoAdapter(facilitator, app, "/facilitator");
+```
+
+**Mounted endpoints:**
+- `GET /facilitator/supported`
+- `GET /facilitator/public-keys`
+- `POST /facilitator/verify`
+- `POST /facilitator/settle`
+- `GET /facilitator/dashboard`
+- `GET /facilitator/dashboard/transactions`
+
+### Express Adapter
+
+```ts
+import { createExpressAdapter } from "@x402-sovereign/core";
+
+createExpressAdapter(facilitator, app, "/facilitator");
+```
+
+Same endpoints as Hono adapter.
+
+### Custom Framework
+
+For other frameworks, use the Facilitator methods directly and map them to your routes. See the "Manual Setup" section above.
 
 ---
 
-## Status
+## Security Considerations
 
-- EVM only
-- per-request payments work end to end on Base Sepolia
-- entitlement / persistence (who already paid for what) is out of scope for this package and will live above it
+### Hot Wallet Warning
 
-That's the whole point of this repo. You own the facilitator.
+- Your private keys (`evmPrivateKey` or `solanaPrivateKey`) are **hot wallets**
+- These keys pay gas fees and execute on-chain settlements
+- They have direct access to pull authorized funds from buyers
+- **Never commit private keys to version control**
+- Store them securely using environment variables or KMS
+
+### Best Practices
+
+- Use separate wallets for facilitator operations vs. long-term storage
+- Monitor transaction activity regularly via the dashboard endpoints
+- Set up alerts for unusual transaction patterns
+- Keep the facilitator wallet funded with just enough for gas fees
+- Regularly rotate keys if possible
+- Use testnet (devnet/sepolia) for development and testing
+- Implement rate limiting on your facilitator endpoints
+- Use HTTPS in production
+
+---
+
+## Examples
+
+Full working examples are available in the monorepo:
+
+- **[Express + Solana](../example-express/)** - Complete Solana devnet implementation with dashboard
+- **[Hono + EVM](../example-hono/)** - Base Sepolia implementation
+
+Both examples include:
+- Environment configuration
+- Facilitator setup
+- Protected routes with x402 payment requirements
+- Transaction tracking
+
+---
+
+## What's Included
+
+- ✅ Multi-chain support (Solana & EVM)
+- ✅ Payment verification and settlement
+- ✅ Transaction tracking and database models
+- ✅ Dashboard analytics endpoints
+- ✅ Framework adapters (Express, Hono)
+- ✅ Public key endpoints for authentication
+- ✅ TypeScript support with full type definitions
+
+## What's Not Included
+
+- ❌ Entitlement management (tracking who paid for what) - implement this in your application layer
+- ❌ Subscription or recurring payment logic
+- ❌ Refund functionality
+- ❌ Multi-signature wallet support
+- ❌ Frontend UI (see [@x402-sovereign/ui](../ui/) for dashboard UI)
+
+---
+
+## Contributing
+
+This package is part of the [x402-Teller](../../) monorepo. Contributions are welcome!
+
+## License
+
+See [LICENSE](../../LICENSE) for details.
+
+---
+
+**Part of x402-Teller** - Self-sovereign payment infrastructure for the open web.
