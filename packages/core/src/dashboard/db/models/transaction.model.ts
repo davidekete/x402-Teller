@@ -28,7 +28,7 @@ const Transaction = sq.define(
     amount: {
       type: DataTypes.BIGINT,
       allowNull: false,
-      comment: "Amount in smallest unit (e.g., lamports for SOL, wei for ETH)",
+      comment: "Amount",
     },
     endpoint: {
       type: DataTypes.STRING,

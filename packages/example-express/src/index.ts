@@ -1,18 +1,17 @@
 import express from "express";
 import { paymentMiddleware, type SolanaAddress } from "x402-express";
-import { Facilitator, createExpressAdapter } from "@x402-sovereign/core";
+import {
+  Facilitator,
+  createExpressAdapter,
+  type RoutesConfig,
+} from "@x402-sovereign/core";
 import { config } from "dotenv";
-import { readFileSync } from "fs";
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 config();
 
 // Validate environment variables
 const solanaPrivateKey = process.env.SVM_PRIVATE_KEY?.trim();
+const solanaPublicKey = process.env.SVM_PUBLIC_KEY?.trim();
 if (!solanaPrivateKey) {
   console.error(
     "❌ Error: SVM_PRIVATE_KEY environment variable is not set or is empty"
@@ -31,93 +30,45 @@ app.use(express.json());
 // Serve static files from public directory
 app.use(express.static("public"));
 
-// Initialize your sovereign facilitator
-// const facilitator = new Facilitator({
-//   evmPrivateKey: process.env.EVM_PRIVATE_KEY as `0x${string}`,
-//   networks: [baseSepolia],
-// });
+const payWallRoutes: RoutesConfig = {
+  "/premium-content": {
+    price: "$0.10",
+    network: "solana-devnet",
+    config: { description: "Premium articles" },
+  },
+  "/premium-assets": {
+    price: "$0.10",
+    network: "solana-devnet",
+    config: { description: "Premium files" },
+  },
+  "/premium-keys": {
+    price: "$0.10",
+    network: "solana-devnet",
+    config: { description: "access to premium keys" },
+  },
+};
 
 const facilitator = new Facilitator({
   solanaPrivateKey,
-  solanaFeePayer: "4XSRdDViZH2CPjLqF3M4eDmE1UPHfsjg49m86PMNdZAw", // Your Solana public address
+  solanaFeePayer: solanaPublicKey, // Your Solana public address
   networks: ["solana-devnet"],
   enableDashboard: true, // Enable transaction tracking
   dashboardOptions: {
     force: true, // Reset database on startup (DEVELOPMENT ONLY)
     autoInit: true, // Auto-initialize dashboard (default: true)
   },
+  payWallRouteConfig: payWallRoutes,
 });
 
 // Add facilitator endpoints using the Express adapter
 // This mounts GET /facilitator/supported, POST /facilitator/verify, POST /facilitator/settle
 createExpressAdapter(facilitator, app, "/facilitator");
 
-// Load custom Solana paywall HTML template
-const solanaPaywallTemplate = readFileSync(
-  join(__dirname, "..", "public", "solana-paywall.html"),
-  "utf-8"
-);
-
-// Custom middleware to intercept 402 responses and inject payment requirements
-app.use((req, res, next) => {
-  const originalSend = res.send;
-
-  res.send = function (data: any) {
-    // Check if this is a 402 response with HTML
-    if (
-      res.statusCode === 402 &&
-      typeof data === "string" &&
-      data.includes("<!DOCTYPE html>")
-    ) {
-      // Check if this is NOT our custom Solana paywall (it's the default Base paywall)
-      if (!data.includes("Phantom Wallet")) {
-        // This is the default Base paywall, replace it with our Solana paywall
-        try {
-          // Extract payment requirements from the response
-          // The x402-express middleware includes them in a script tag or meta tag
-          const paymentReqMatch = data.match(
-            /window\.__PAYMENT_REQUIREMENTS__\s*=\s*({[^}]+})/
-          );
-
-          if (paymentReqMatch) {
-            const paymentRequirements = paymentReqMatch[1];
-            const customHtml = solanaPaywallTemplate.replace(
-              "'__PAYMENT_REQUIREMENTS__'",
-              paymentRequirements
-            );
-            return originalSend.call(this, customHtml);
-          }
-        } catch (error) {
-          console.error("Error injecting payment requirements:", error);
-        }
-
-        // Fallback: just use template with defaults
-        return originalSend.call(this, solanaPaywallTemplate);
-      }
-    }
-    return originalSend.call(this, data);
-  };
-
-  next();
-});
-
 // Configure the payment middleware
 app.use(
-  paymentMiddleware(
-    "4XSRdDViZH2CPjLqF3M4eDmE1UPHfsjg49m86PMNdZAw" as SolanaAddress,
-    {
-      "/protected-route": {
-        price: "$0.10",
-        network: "solana-devnet",
-        config: {
-          description: "Access to premium content",
-        },
-      },
-    },
-    {
-      url: "http://localhost:3002/facilitator",
-    }
-  )
+  paymentMiddleware(solanaPublicKey as SolanaAddress, payWallRoutes, {
+    url: "http://localhost:3002/facilitator",
+  })
 );
 
 // Example: A simple route

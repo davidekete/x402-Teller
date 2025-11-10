@@ -11,5 +11,7 @@ export type {
   HttpResponse,
 } from "./facilitator";
 
+export type { RoutesConfig } from "x402/types";
+
 //framework adapters
 export { createExpressAdapter } from "./adapters/express";

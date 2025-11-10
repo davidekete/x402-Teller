@@ -4,7 +4,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { getCsrfToken, signIn, signOut, useSession } from "next-auth/react";
 import { SigninMessage } from "../../utils/sign-in";
 import bs58 from "bs58";
@@ -15,6 +15,8 @@ export default function Home() {
   const router = useRouter();
   const walletModal = useWalletModal();
   const { data: session, status } = useSession();
+  const [error, setError] = useState<string | null>(null);
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   // Effect: Redirect when authenticated
   useEffect(() => {
@@ -26,16 +28,33 @@ export default function Home() {
 
   const handleSignIn = async () => {
     try {
+      setError(null);
+      setIsSigningIn(true);
+
+      // Check if wallet is connected before proceeding
       if (!connected) {
         walletModal.setVisible(true);
+        setIsSigningIn(false);
+        return; // Stop execution until wallet is connected
+      }
+
+      // Ensure we have all required dependencies
+      if (!publicKey || !signMessage) {
+        setError("Wallet not fully connected. Please try reconnecting your wallet.");
+        setIsSigningIn(false);
+        return;
       }
 
       const csrf = await getCsrfToken();
-      if (!publicKey || !csrf || !signMessage) return;
+      if (!csrf) {
+        setError("Failed to get security token. Please refresh the page and try again.");
+        setIsSigningIn(false);
+        return;
+      }
 
       const message = new SigninMessage({
         domain: window.location.host,
-        publicKey: publicKey?.toBase58(),
+        publicKey: publicKey.toBase58(),
         statement: `Sign this message to view your dashboard`,
         nonce: csrf,
       });
@@ -44,13 +63,36 @@ export default function Home() {
       const signature = await signMessage(data);
       const serializedSignature = bs58.encode(signature);
 
-      signIn("credentials", {
+      const result = await signIn("credentials", {
         message: JSON.stringify(message),
         redirect: false,
         signature: serializedSignature,
       });
+
+      if (result?.error) {
+        setError("Authentication failed. Make sure you're using the correct wallet.");
+        setIsSigningIn(false);
+      } else if (result?.ok) {
+        // Success - redirect will happen via useEffect
+        setError(null);
+      }
     } catch (error) {
-      console.log(error);
+      console.error("Sign in error:", error);
+
+      // User-friendly error messages
+      if (error instanceof Error) {
+        if (error.message.includes("User rejected")) {
+          setError("Signature request was cancelled. Please try again.");
+        } else if (error.message.includes("not connected")) {
+          setError("Wallet disconnected. Please reconnect and try again.");
+        } else {
+          setError(`Sign in failed: ${error.message}`);
+        }
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
+
+      setIsSigningIn(false);
     }
   };
 
@@ -82,6 +124,13 @@ export default function Home() {
             Connect your solana wallet address to continue
           </p>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="max-w-md mx-auto bg-red-900/20 border border-red-500 rounded-lg p-4">
+            <p className="text-red-400 text-sm">{error}</p>
+          </div>
+        )}
 
         {/* Custom styled wallet button */}
         <div className="flex justify-center">
@@ -145,6 +194,7 @@ export default function Home() {
               ) : !session ? (
                 <button
                   onClick={handleSignIn}
+                  disabled={isSigningIn}
                   style={{
                     backgroundColor: "#202020",
                     color: "white",
@@ -159,10 +209,11 @@ export default function Home() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    cursor: "pointer",
+                    cursor: isSigningIn ? "not-allowed" : "pointer",
+                    opacity: isSigningIn ? 0.6 : 1,
                   }}
                 >
-                  Sign In
+                  {isSigningIn ? "Signing In..." : "Sign In"}
                 </button>
               ) : null}
             </div>

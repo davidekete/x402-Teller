@@ -154,7 +154,7 @@ export async function getAllTransactions(options?: {
 
     const transactions = await Transaction.findAll({
       where,
-      limit: options?.limit || 100,
+      limit: options?.limit || 20,
       offset: options?.offset || 0,
       order: [["time", "DESC"]],
     });
@@ -163,6 +163,120 @@ export async function getAllTransactions(options?: {
   } catch (err: any) {
     console.error("Error fetching all transactions:", err);
     throw new Error(`Failed to fetch transactions: ${err.message}`);
+  }
+}
+
+/**
+ * Gets statistics for each endpoint
+ * @param timeframe - Optional timeframe for filtering (e.g. '24h', '7d', '30d', 'all')
+ * @returns Array of endpoint statistics with call counts
+ */
+export async function getEndpointStats(timeframe?: string): Promise<
+  Array<{
+    endpointPath: string;
+    numberOfCalls: number;
+    successfulCalls: number;
+    failedCalls: number;
+    totalRevenue: number;
+    averageAmount: number;
+    lastAccessed: Date | null;
+  }>
+> {
+  try {
+    // Calculate timeframe filter
+    const where: any = {};
+    if (timeframe && timeframe !== "all") {
+      const now = new Date();
+      let startDate: Date;
+
+      switch (timeframe) {
+        case "24h":
+          startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          break;
+        case "7d":
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case "30d":
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          startDate = new Date(0); // All time
+      }
+
+      where.time = { $gte: startDate };
+    }
+
+    // Get all transactions within timeframe
+    const transactions = await Transaction.findAll({
+      where,
+      attributes: ["endpoint", "status", "amount", "time"],
+    });
+
+    // Group by endpoint
+    const endpointMap = new Map<
+      string,
+      {
+        total: number;
+        successful: number;
+        failed: number;
+        revenue: number;
+        amounts: number[];
+        lastAccessed: Date | null;
+      }
+    >();
+
+    for (const tx of transactions) {
+      const txData = tx.get({ plain: true }) as any;
+      const endpoint = txData.endpoint;
+
+      if (!endpointMap.has(endpoint)) {
+        endpointMap.set(endpoint, {
+          total: 0,
+          successful: 0,
+          failed: 0,
+          revenue: 0,
+          amounts: [],
+          lastAccessed: null,
+        });
+      }
+
+      const stats = endpointMap.get(endpoint)!;
+      stats.total++;
+
+      if (txData.status === "settled") {
+        stats.successful++;
+        stats.revenue += txData.amount || 0;
+        stats.amounts.push(txData.amount || 0);
+      } else if (txData.status === "failed") {
+        stats.failed++;
+      }
+
+      // Update last accessed time
+      const txTime = new Date(txData.time);
+      if (!stats.lastAccessed || txTime > stats.lastAccessed) {
+        stats.lastAccessed = txTime;
+      }
+    }
+
+    // Convert map to array and calculate averages
+    const result = Array.from(endpointMap.entries()).map(([path, stats]) => ({
+      endpointPath: path,
+      numberOfCalls: stats.total,
+      successfulCalls: stats.successful,
+      failedCalls: stats.failed,
+      totalRevenue: stats.revenue,
+      averageAmount:
+        stats.amounts.length > 0
+          ? stats.amounts.reduce((a, b) => a + b, 0) / stats.amounts.length
+          : 0,
+      lastAccessed: stats.lastAccessed,
+    }));
+
+    // Sort by number of calls (descending)
+    return result.sort((a, b) => b.numberOfCalls - a.numberOfCalls);
+  } catch (err: any) {
+    console.error("Error fetching endpoint stats:", err);
+    throw new Error(`Failed to fetch endpoint stats: ${err.message}`);
   }
 }
 
