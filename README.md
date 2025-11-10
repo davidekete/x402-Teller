@@ -148,7 +148,8 @@ The facilitator exposes these endpoints:
 | `POST` | `/verify` | Verify a payment authorization is valid |
 | `POST` | `/settle` | Execute payment settlement on-chain |
 | `GET` | `/dashboard` | Dashboard statistics (total transactions, volume, success rate) |
-| `GET` | `/dashboard/transactions` | Paginated transaction history |
+| `GET` | `/dashboard/transactions?limit=20&offset=0` | Paginated transaction history with optional filters |
+| `GET` | `/dashboard/endpoints?timeframe=24h` | Endpoint statistics with usage analytics |
 
 ## Core Package API
 
