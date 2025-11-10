@@ -1,4 +1,4 @@
-# `@x402-sovereign/core`
+# `@x402-teller/core`
 
 Self-hosted x402 payment facilitator with multi-chain support.
 
@@ -11,7 +11,7 @@ This package lets API sellers run their own x402 facilitator instead of relying 
 - Transaction tracking with database models (Sequelize ORM)
 - Dashboard endpoints for analytics and transaction history
 - Public key endpoints for wallet-based authentication
-- Framework adapters for Express and Hono
+- Framework adapters for Express
 
 **Core endpoints:**
 
@@ -29,15 +29,14 @@ No external facilitator. No third-party dependencies. Your own infrastructure.
 ## Installation
 
 ```bash
-npm install @x402-sovereign/core
+npm install @x402-teller/core
 # or
-bun add @x402-sovereign/core
+bun add @x402-teller/core
 ```
 
 **Peer Dependencies:**
 
 - `express` (optional) - if using Express adapter
-- `hono` (optional) - if using Hono adapter
 - `viem` - for EVM networks
 - `@solana/web3.js` - for Solana networks
 
@@ -51,7 +50,7 @@ bun add @x402-sovereign/core
 
 ```ts
 import express from "express";
-import { Facilitator, createExpressAdapter } from "@x402-sovereign/core";
+import { Facilitator, createExpressAdapter } from "@x402-teller/core";
 
 const app = express();
 app.use(express.json());
@@ -68,14 +67,10 @@ createExpressAdapter(facilitator, app, "/facilitator");
 app.listen(3000, () => console.log("Facilitator running on :3000"));
 ```
 
-#### With Hono (EVM)
 
 ```ts
-import { Hono } from "hono";
-import { Facilitator, createHonoAdapter } from "@x402-sovereign/core";
 import { baseSepolia } from "viem/chains";
 
-const app = new Hono();
 
 const facilitator = new Facilitator({
   evmPrivateKey: process.env.EVM_PRIVATE_KEY as `0x${string}`,
@@ -83,7 +78,6 @@ const facilitator = new Facilitator({
 });
 
 // Mounts all facilitator endpoints at /facilitator
-createHonoAdapter(facilitator, app, "/facilitator");
 
 export default app;
 ```
@@ -93,7 +87,7 @@ export default app;
 If you're using a different framework or want more control, you can use the Facilitator methods directly:
 
 ```ts
-import { Facilitator } from "@x402-sovereign/core";
+import { Facilitator } from "@x402-teller/core";
 
 const facilitator = new Facilitator({
   solanaPrivateKey: process.env.SOLANA_PRIVATE_KEY!,
@@ -127,7 +121,6 @@ const transactions = await facilitator.getTransactions(20, 0);
 Point your `paymentMiddleware` to use your facilitator:
 
 ```ts
-import { paymentMiddleware } from "x402-hono"; // or x402-express
 
 paymentMiddleware(
   "your_receiving_address", // Your wallet address
@@ -283,12 +276,9 @@ Configure the database connection via environment variables or pass a Sequelize 
 
 Built-in adapters automatically mount all facilitator endpoints:
 
-### Hono Adapter
 
 ```ts
-import { createHonoAdapter } from "@x402-sovereign/core";
 
-createHonoAdapter(facilitator, app, "/facilitator");
 ```
 
 **Mounted endpoints:**
@@ -302,12 +292,11 @@ createHonoAdapter(facilitator, app, "/facilitator");
 ### Express Adapter
 
 ```ts
-import { createExpressAdapter } from "@x402-sovereign/core";
+import { createExpressAdapter } from "@x402-teller/core";
 
 createExpressAdapter(facilitator, app, "/facilitator");
 ```
 
-Same endpoints as Hono adapter.
 
 ### Custom Framework
 
@@ -343,7 +332,6 @@ For other frameworks, use the Facilitator methods directly and map them to your 
 Full working examples are available in the monorepo:
 
 - **[Express + Solana](../example-express/)** - Complete Solana devnet implementation with dashboard
-- **[Hono + EVM](../example-hono/)** - Base Sepolia implementation
 
 Both examples include:
 - Environment configuration
@@ -359,7 +347,6 @@ Both examples include:
 - ✅ Payment verification and settlement
 - ✅ Transaction tracking and database models
 - ✅ Dashboard analytics endpoints
-- ✅ Framework adapters (Express, Hono)
 - ✅ Public key endpoints for authentication
 - ✅ TypeScript support with full type definitions
 
@@ -369,7 +356,7 @@ Both examples include:
 - ❌ Subscription or recurring payment logic
 - ❌ Refund functionality
 - ❌ Multi-signature wallet support
-- ❌ Frontend UI (see [@x402-sovereign/ui](../ui/) for dashboard UI)
+- ❌ Frontend UI (see [@x402-teller/ui](../ui/) for dashboard UI)
 
 ---
 

@@ -536,17 +536,6 @@ export class Facilitator {
    * Returns a standard { status, body } response that can be used with any framework.
    *
    * @example
-   * // Hono
-   * app.all("/facilitator/*", async (c) => {
-   *   const response = await facilitator.handleRequest({
-   *     method: c.req.method,
-   *     path: c.req.path.replace("/facilitator", ""),
-   *     body: await c.req.json().catch(() => undefined)
-   *   });
-   *   return c.json(response.body, response.status);
-   * });
-   *
-   * @example
    * // Express
    * app.all("/facilitator/*", async (req, res) => {
    *   const response = await facilitator.handleRequest({

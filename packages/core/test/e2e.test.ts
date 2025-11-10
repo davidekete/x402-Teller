@@ -6,8 +6,6 @@ import {
   expect,
 } from "bun:test";
 
-import { Hono } from "hono";
-import { paymentMiddleware } from "x402-hono";
 import {
   wrapFetchWithPayment,
   decodeXPaymentResponse,
@@ -98,10 +96,8 @@ describe("x402 e2e on base-sepolia", () => {
 
     facilitatorUrl = normalizeServerUrl(facilitatorServer);
 
-    // 3. create paywalled API server with x402-hono
     const sellerAccount = privateKeyToAccount(sellerPk);
 
-    const app = new Hono();
 
     app.use(
       paymentMiddleware(
