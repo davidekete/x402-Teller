@@ -10,7 +10,7 @@ X402-Teller is a complete solution for running your own x402 payment facilitator
 - Multi-chain support (Solana, Base, and other EVM networks)
 - Transaction dashboard with analytics and history
 - Wallet-based authentication (Solana Sign-In)
-- Framework adapters for Express and Hono
+- Framework adapters for Express
 
 When you run x402-Teller, you control:
 
@@ -27,10 +27,8 @@ No external facilitator. No third-party dependencies. Your own infrastructure.
 
 This is a monorepo containing:
 
-- **[@x402-sovereign/core](./packages/core/)** - Core facilitator package with Express & Hono adapters
 - **[ui](./packages/ui/)** - Next.js dashboard for transaction monitoring and analytics
 - **[example-express](./packages/example-express/)** - Solana devnet example with Express
-- **[example-hono](./packages/example-hono/)** - Base Sepolia example with Hono
 
 ---
 
@@ -39,7 +37,7 @@ This is a monorepo containing:
 ### Payment Facilitator
 
 - **Multi-chain support**: Solana (mainnet/devnet) and EVM networks (Base, Base Sepolia, etc.)
-- **Framework-agnostic core**: Use with Express, Hono, or any HTTP server
+- **Framework-agnostic core**: Use with Express or any HTTP server
 - **Automatic settlement**: Pulls authorized funds from buyers on-chain
 - **Transaction tracking**: Built-in database models for monitoring all payments
 
@@ -71,7 +69,6 @@ bun install
 
 ### 2. Set Up Environment Variables
 
-**For the facilitator (example-express or example-hono):**
 
 ```bash
 # Solana example (example-express)
@@ -79,7 +76,6 @@ SOLANA_PRIVATE_KEY=your_base58_private_key
 SOLANA_PUBLIC_KEY=your_public_key
 PORT=3000
 
-# OR EVM example (example-hono)
 EVM_PRIVATE_KEY=0x...
 PORT=3000
 ```
@@ -102,10 +98,8 @@ cd packages/example-express
 bun run dev
 ```
 
-**Option B: EVM (Hono example)**
 
 ```bash
-cd packages/example-hono
 bun run dev
 ```
 
@@ -123,7 +117,6 @@ The dashboard will be available at `http://localhost:3001`. Sign in with the fac
 Point your `paymentMiddleware` at your facilitator:
 
 ```ts
-import { paymentMiddleware } from "x402-hono";
 
 paymentMiddleware(
   "your_receiving_address",
@@ -164,7 +157,7 @@ The facilitator exposes these endpoints:
 **For EVM Networks:**
 
 ```ts
-import { Facilitator } from "@x402-sovereign/core";
+import { Facilitator } from "@x402-teller/core";
 import { baseSepolia } from "viem/chains";
 
 const facilitator = new Facilitator({
@@ -176,7 +169,7 @@ const facilitator = new Facilitator({
 **For Solana:**
 
 ```ts
-import { Facilitator } from "@x402-sovereign/core";
+import { Facilitator } from "@x402-teller/core";
 
 const facilitator = new Facilitator({
   solanaPrivateKey: process.env.SOLANA_PRIVATE_KEY,
@@ -234,18 +227,15 @@ This ensures that only you can view your payment data and transaction history.
 
 Built-in adapters make integration easy:
 
-### Hono
 
 ```ts
-import { createHonoAdapter } from "@x402-sovereign/core";
 
-createHonoAdapter(facilitator, app, "/facilitator");
 ```
 
 ### Express
 
 ```ts
-import { createExpressAdapter } from "@x402-sovereign/core";
+import { createExpressAdapter } from "@x402-teller/core";
 
 createExpressAdapter(facilitator, app, "/facilitator");
 ```
@@ -259,7 +249,6 @@ For other frameworks, use the core methods directly and map them to your routes.
 ## Examples
 
 - **[Express + Solana Example](./packages/example-express/)** - Full Solana devnet implementation
-- **[Hono + EVM Example](./packages/example-hono/)** - Base Sepolia implementation
 - **[Dashboard UI](./packages/ui/)** - Next.js dashboard with wallet auth
 
 ---
@@ -267,7 +256,7 @@ For other frameworks, use the core methods directly and map them to your routes.
 ## Tech Stack
 
 - **Runtime**: Bun
-- **Backend**: Express / Hono (framework-agnostic core)
+- **Backend**: Express (framework-agnostic core)
 - **Frontend**: Next.js 15, React 19, Tailwind CSS
 - **Blockchain**: Viem (EVM), Solana Web3.js
 - **Database**: Sequelize ORM (SQLite/PostgreSQL)

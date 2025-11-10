@@ -38,7 +38,7 @@ bun run dev
 ### 1. Initialize the Facilitator
 
 ```typescript
-import { Facilitator, createExpressAdapter } from "@x402-sovereign/core";
+import { Facilitator, createExpressAdapter } from "@x402-teller/core";
 import { baseSepolia } from "viem/chains";
 
 const facilitator = new Facilitator({

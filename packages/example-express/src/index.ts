@@ -4,7 +4,7 @@ import {
   Facilitator,
   createExpressAdapter,
   type RoutesConfig,
-} from "@x402-sovereign/core";
+} from "@x402-teller/core";
 import { config } from "dotenv";
 
 config();
