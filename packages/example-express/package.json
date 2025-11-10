@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@types/cors": "^2.8.19",
-    "@x402-sovereign/core": "workspace:*",
+    "@x402-teller/core": "workspace:*",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
