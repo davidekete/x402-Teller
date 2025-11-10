@@ -94,6 +94,7 @@ export const authOptions: NextAuthOptions = {
             signedAt: new Date().toISOString(),
           };
         } catch (e) {
+          console.log(e);
           return null;
         }
       },

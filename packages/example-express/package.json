@@ -8,7 +8,9 @@
     "start": "tsx src/index.ts"
   },
   "dependencies": {
+    "@types/cors": "^2.8.19",
     "@x402-sovereign/core": "workspace:*",
+    "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "viem": "^2.38.4",

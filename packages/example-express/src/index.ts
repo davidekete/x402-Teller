@@ -6,6 +6,7 @@ import {
   type RoutesConfig,
 } from "@x402-sovereign/core";
 import { config } from "dotenv";
+import cors from "cors";
 
 config();
 
@@ -23,6 +24,12 @@ if (!solanaPrivateKey) {
 }
 
 const app = express();
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+    credentials: true,
+  })
+);
 
 // Parse JSON bodies
 app.use(express.json());

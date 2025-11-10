@@ -40,14 +40,18 @@ export default function Home() {
 
       // Ensure we have all required dependencies
       if (!publicKey || !signMessage) {
-        setError("Wallet not fully connected. Please try reconnecting your wallet.");
+        setError(
+          "Wallet not fully connected. Please try reconnecting your wallet."
+        );
         setIsSigningIn(false);
         return;
       }
 
       const csrf = await getCsrfToken();
       if (!csrf) {
-        setError("Failed to get security token. Please refresh the page and try again.");
+        setError(
+          "Failed to get security token. Please refresh the page and try again."
+        );
         setIsSigningIn(false);
         return;
       }
@@ -70,7 +74,9 @@ export default function Home() {
       });
 
       if (result?.error) {
-        setError("Authentication failed. Make sure you're using the correct wallet.");
+        setError(
+          "Authentication failed. Make sure you're using the correct wallet."
+        );
         setIsSigningIn(false);
       } else if (result?.ok) {
         // Success - redirect will happen via useEffect
