@@ -18,7 +18,7 @@ import type { Facilitator } from "../facilitator";
  *
  * @example
  * import express from "express";
- * import { Facilitator, createExpressAdapter } from "@x402-sovereign/core";
+ * import { Facilitator, createExpressAdapter } from "@x402-teller/core";
  * import { baseSepolia } from "viem/chains";
  *
  * const app = express();
