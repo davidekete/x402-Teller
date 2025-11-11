@@ -5,16 +5,17 @@ import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getCsrfToken, signIn, signOut, useSession } from "next-auth/react";
+import { getCsrfToken, signIn, useSession } from "next-auth/react";
 import { SigninMessage } from "../../utils/sign-in";
 import bs58 from "bs58";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { Link } from "lucide-react";
 
 export default function Home() {
-  const { publicKey, connected, signMessage } = useWallet();
+  const { publicKey, connected, signMessage, disconnect } = useWallet();
   const router = useRouter();
   const walletModal = useWalletModal();
-  const { data: session, status } = useSession();
+  const { data: session } = useSession();
   const [error, setError] = useState<string | null>(null);
   const [isSigningIn, setIsSigningIn] = useState(false);
 
@@ -40,14 +41,18 @@ export default function Home() {
 
       // Ensure we have all required dependencies
       if (!publicKey || !signMessage) {
-        setError("Wallet not fully connected. Please try reconnecting your wallet.");
+        setError(
+          "Wallet not fully connected. Please try reconnecting your wallet."
+        );
         setIsSigningIn(false);
         return;
       }
 
       const csrf = await getCsrfToken();
       if (!csrf) {
-        setError("Failed to get security token. Please refresh the page and try again.");
+        setError(
+          "Failed to get security token. Please refresh the page and try again."
+        );
         setIsSigningIn(false);
         return;
       }
@@ -70,7 +75,9 @@ export default function Home() {
       });
 
       if (result?.error) {
-        setError("Authentication failed. Make sure you're using the correct wallet.");
+        setError(
+          "Authentication failed. Make sure you're using the correct wallet."
+        );
         setIsSigningIn(false);
       } else if (result?.ok) {
         // Success - redirect will happen via useEffect
@@ -117,11 +124,17 @@ export default function Home() {
       <div className="relative z-10 text-center px-4 grid gap-9">
         <div className="">
           <h1 className="text-[56px] font-medium text-white mb-3 leading-snug">
-            Sign In
+            {!connected
+              ? "Connect Your Wallet"
+              : !session
+              ? "Sign In"
+              : "Redirecting..."}
           </h1>
 
           <p className="text-gray-400 text-base">
-            Connect your solana wallet address to continue
+            {!connected
+              ? "Connect your solana wallet address to continue"
+              : "Verify your identity with your signature"}
           </p>
         </div>
 
@@ -131,7 +144,34 @@ export default function Home() {
             <p className="text-red-400 text-sm">{error}</p>
           </div>
         )}
-
+        {connected && !session ? (
+          <div className="flex items-center gap-4 w-[360px]">
+            <span className="font-mono bg-[#202020] text-white text-[18px] font-medium py-3.5 px-8 rounded-2xl transition-all duration-200 h-[54px] flex-1 flex gap-2 items-center justify-center">
+              <Image
+                src="/solana.png"
+                alt="Solana Logo"
+                width={30}
+                height={30}
+                className="rounded-full"
+              />
+              {publicKey
+                ? (() => {
+                    const pk = publicKey.toBase58();
+                    return `${pk.slice(0, 9)}...${pk.slice(-4)}`;
+                  })()
+                : ""}
+            </span>
+            <button
+              onClick={() => {
+                disconnect();
+              }}
+              aria-label="Disconnect wallet"
+              className="font-mono bg-[#202020] text-white text-[18px] font-medium p-5 rounded-2xl transition-all duration-200 h-[54px] w-fit flex items-center justify-center hover:bg-red-600"
+            >
+              <Link className="w-5 h-5 text-zinc-400" />
+            </button>
+          </div>
+        ) : null}
         {/* Custom styled wallet button */}
         <div className="flex justify-center">
           <div className="group relative">
