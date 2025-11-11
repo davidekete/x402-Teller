@@ -1,33 +1,82 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { fetchBalance } from "@/lib/api";
+import { useWallet, useConnection } from "@solana/wallet-adapter-react";
+import { PublicKey, Transaction } from "@solana/web3.js";
+import {
+  getAssociatedTokenAddress,
+  createTransferInstruction,
+  createAssociatedTokenAccountInstruction,
+  getAccount,
+} from "@solana/spl-token";
 
 interface WithdrawModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+// USDC token mint addresses
+const USDC_MINT_DEVNET = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
+const USDC_MINT_MAINNET = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+
 export function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
   const [address, setAddress] = useState("");
   const [amount, setAmount] = useState("");
-  const [selectedCurrency, setSelectedCurrency] = useState("USDC");
+  const [network, setNetwork] = useState<"solana" | "solana-devnet">(
+    "solana-devnet"
+  );
+  const [balance, setBalance] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string>("");
+  const [success, setSuccess] = useState<string>("");
 
-  if (!isOpen) return null;
+  const { publicKey, signTransaction } = useWallet();
+  const { connection } = useConnection();
+
+  // Auto-detect network from connection endpoint
+  useEffect(() => {
+    if (isOpen && connection) {
+      const endpoint = connection.rpcEndpoint;
+      // Check if endpoint contains 'mainnet' or 'devnet'
+      if (endpoint.includes('mainnet')) {
+        setNetwork("solana");
+      } else if (endpoint.includes('devnet') || endpoint.includes('testnet')) {
+        setNetwork("solana-devnet");
+      }
+      // Default to devnet if cannot detect
+    }
+  }, [isOpen, connection]);
+
+  // Fetch balance when modal opens or network changes
+  useEffect(() => {
+    if (isOpen) {
+      loadBalance();
+    }
+  }, [isOpen, network]);
+
+  const loadBalance = async () => {
+    try {
+      const result = await fetchBalance(network);
+
+      if (result.success && result.balance !== undefined) {
+        setBalance(result.balance);
+      }
+    } catch (err) {
+      console.error("Failed to load balance:", err);
+    }
+  };
 
   const handlePaste = async () => {
     try {
-      // Check if clipboard API is available
       if (navigator.clipboard && navigator.clipboard.readText) {
         const text = await navigator.clipboard.readText();
         setAddress(text);
       }
     } catch (error) {
-      // Fallback: focus input and let user paste manually with Ctrl+V
-      console.log("[v0] Clipboard API not available, please paste manually");
-      // Just focus the input field so user can paste manually
       const input = document.querySelector(
         'input[placeholder="Enter Address"]'
       ) as HTMLInputElement;
@@ -38,15 +87,178 @@ export function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
   };
 
   const handleMax = () => {
-    setAmount("0.00000");
+    // Convert token units to human-readable format (divide by 1,000,000)
+    const maxAmount = balance / 1_000_000;
+    setAmount(maxAmount.toFixed(2));
   };
+
+  const handleWithdraw = async () => {
+    setError("");
+    setSuccess("");
+
+    // Check wallet connection
+    if (!publicKey) {
+      setError("Wallet not connected. Please refresh and ensure your wallet is connected.");
+      return;
+    }
+
+    if (!signTransaction) {
+      setError("Your wallet doesn't support signing. Please use a compatible wallet like Phantom or Solflare.");
+      return;
+    }
+
+    // Validation
+    if (!address.trim()) {
+      setError("Please enter a recipient address");
+      return;
+    }
+
+    const amountNum = parseFloat(amount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      setError("Please enter a valid amount");
+      return;
+    }
+
+    // Convert to base units (multiply by 1,000,000)
+    const amountInBaseUnits = Math.floor(amountNum * 1_000_000);
+
+    if (amountInBaseUnits > balance) {
+      setError("Insufficient balance");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Validate recipient address
+      let recipientPubkey: PublicKey;
+      try {
+        recipientPubkey = new PublicKey(address);
+      } catch {
+        setError("Invalid recipient address");
+        setIsLoading(false);
+        return;
+      }
+
+      const usdcMint =
+        network === "solana" ? USDC_MINT_MAINNET : USDC_MINT_DEVNET;
+      const mintPubkey = new PublicKey(usdcMint);
+
+      // Get associated token accounts
+      const fromTokenAccount = await getAssociatedTokenAddress(
+        mintPubkey,
+        publicKey
+      );
+
+      const toTokenAccount = await getAssociatedTokenAddress(
+        mintPubkey,
+        recipientPubkey
+      );
+
+      // Check if recipient token account exists
+      let toAccountExists = true;
+      try {
+        await getAccount(connection, toTokenAccount);
+      } catch {
+        toAccountExists = false;
+      }
+
+      // Create transaction
+      const transaction = new Transaction();
+
+      // Add compute budget if needed (for reliability)
+      // transaction.add(
+      //   ComputeBudgetProgram.setComputeUnitLimit({ units: 300_000 })
+      // );
+
+      // If recipient token account doesn't exist, create it
+      if (!toAccountExists) {
+        transaction.add(
+          createAssociatedTokenAccountInstruction(
+            publicKey, // payer
+            toTokenAccount, // associated token account
+            recipientPubkey, // owner
+            mintPubkey // mint
+          )
+        );
+      }
+
+      // Add transfer instruction
+      transaction.add(
+        createTransferInstruction(
+          fromTokenAccount,
+          toTokenAccount,
+          publicKey,
+          amountInBaseUnits
+        )
+      );
+
+      // Get recent blockhash
+      const { blockhash, lastValidBlockHeight } =
+        await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = publicKey;
+
+      // Request user to sign the transaction
+      const signedTransaction = await signTransaction(transaction);
+
+      // Send the signed transaction
+      const signature = await connection.sendRawTransaction(
+        signedTransaction.serialize()
+      );
+
+      // Wait for confirmation
+      await connection.confirmTransaction(
+        {
+          signature,
+          blockhash,
+          lastValidBlockHeight,
+        },
+        "confirmed"
+      );
+
+      setSuccess(
+        `Successfully withdrew ${amount} USDC!`
+      );
+      setAddress("");
+      setAmount("");
+      await loadBalance(); // Refresh balance
+
+      // Close modal after 3 seconds
+      setTimeout(() => {
+        onClose();
+        setSuccess("");
+      }, 3000);
+    } catch (err: any) {
+      console.error("Withdrawal error:", err);
+
+      // Handle user rejection
+      if (err.message?.includes("User rejected")) {
+        setError("Transaction was rejected");
+      } else {
+        setError(err.message || "Withdrawal failed");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  // Format balance for display (divide by 1,000,000)
+  const displayBalance = (balance / 1_000_000).toFixed(2);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
       <div className="w-full max-w-md bg-[#1a1a1a] rounded-3xl p-8 relative border border-zinc-800/50">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <h2 className="text-3xl font-bold">Withdraw to Wallet</h2>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-3xl font-bold">Withdraw USDC</h2>
+            <p className="text-sm text-zinc-500 mt-1">
+              {network === "solana" ? "Mainnet" : "Devnet"}
+            </p>
+          </div>
           <button
             onClick={onClose}
             className="w-12 h-12 rounded-full bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center transition-colors"
@@ -86,12 +298,16 @@ export function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0"
-                className="bg-transparent border-none outline-none text-7xl font-bold text-zinc-400 w-full placeholder:text-zinc-700"
+                className="bg-transparent border-none outline-none text-5xl font-bold text-white w-full placeholder:text-zinc-700"
               />
-              <span className="text-7xl font-bold text-zinc-400 ml-2">USD</span>
+              <span className="text-5xl font-bold text-zinc-400 ml-2">
+                USDC
+              </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-zinc-500">0 0.00000 USDC</span>
+              <span className="text-sm text-zinc-500">
+                Balance: {displayBalance} USDC
+              </span>
               <Button
                 onClick={handleMax}
                 variant="outline"
@@ -103,43 +319,35 @@ export function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
           </div>
         </div>
 
-        {/* Currency Selector */}
-        <div className="mb-6">
-          <button className="w-full bg-zinc-900/50 rounded-2xl p-5 border border-zinc-800/50 flex items-center justify-between hover:bg-zinc-800/50 transition-colors">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  className="w-6 h-6 text-white"
-                >
-                  <path
-                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.31-8.86c-1.77-.45-2.34-.94-2.34-1.67 0-.84.79-1.43 2.1-1.43 1.38 0 1.9.66 1.94 1.64h1.71c-.05-1.34-.87-2.57-2.49-2.97V5H10.9v1.69c-1.51.32-2.72 1.3-2.72 2.81 0 1.79 1.49 2.69 3.66 3.21 1.95.46 2.34 1.15 2.34 1.87 0 .53-.39 1.39-2.1 1.39-1.6 0-2.23-.72-2.32-1.64H8.04c.1 1.7 1.36 2.66 2.86 2.97V19h2.34v-1.67c1.52-.29 2.72-1.16 2.72-2.8-.01-2.25-1.97-2.86-3.65-3.39z"
-                    fill="currentColor"
-                  />
-                </svg>
-              </div>
-              <span className="text-xl font-semibold">USDC</span>
-            </div>
-            <svg
-              className="w-6 h-6 text-white"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
-          </button>
+        {/* Error/Success Messages */}
+        {error && (
+          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+            {error}
+          </div>
+        )}
+        {success && (
+          <div className="mb-4 p-3 bg-green-500/10 border border-green-500/20 rounded-xl text-green-400 text-sm">
+            {success}
+          </div>
+        )}
+
+        {/* Security Notice */}
+        <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400 text-xs">
+          🔒 Your wallet will prompt you to sign this transaction
         </div>
 
         {/* Withdraw Button */}
-        <Button className="w-full bg-zinc-800 hover:bg-zinc-700 text-white rounded-2xl py-6 text-lg font-semibold mb-6 h-auto">
-          Withdraw to wallet
+        <Button
+          onClick={handleWithdraw}
+          disabled={isLoading || !publicKey}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-2xl py-6 text-lg font-semibold mb-6 h-auto disabled:opacity-50 disabled:cursor-not-allowed"
+          title={!publicKey ? "Wallet not connected" : undefined}
+        >
+          {isLoading
+            ? "Awaiting signature..."
+            : !publicKey
+            ? "Wallet Not Connected"
+            : "Sign & Withdraw"}
         </Button>
 
         {/* Offramp Section */}

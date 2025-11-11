@@ -8,7 +8,6 @@ import { fetchEndpointStats, type EndpointStat } from "../../../lib/api";
 const defaultEndpoints: EndpointStat = {
   endpoints: [
     {
-      method: "GET",
       endpointPath: "/api/generate",
       numberOfCalls: 12450,
       successfulCalls: 12300,
@@ -21,7 +20,6 @@ const defaultEndpoints: EndpointStat = {
       description: "Generates content from prompts",
     },
     {
-      method: "GET",
       endpointPath: "/api/verify",
       numberOfCalls: 25120,
       successfulCalls: 24900,
@@ -34,7 +32,6 @@ const defaultEndpoints: EndpointStat = {
       description: "Verifies input and returns validation results",
     },
     {
-      method: "GET",
       endpointPath: "/api/ingest",
       numberOfCalls: 450,
       successfulCalls: 445,
@@ -80,9 +77,9 @@ export function EndpointsTable() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-zinc-800/50">
-                <th className="text-left text-sm font-medium text-zinc-400 px-6 py-4">
+                {/* <th className="text-left text-sm font-medium text-zinc-400 px-6 py-4">
                   Method
-                </th>
+                </th> */}
                 <th className="text-left text-sm font-medium text-zinc-400 px-6 py-4">
                   Route
                 </th>
@@ -100,11 +97,11 @@ export function EndpointsTable() {
                   key={index}
                   className="border-b border-zinc-800/30 last:border-0"
                 >
-                  <td className="px-6 py-4">
+                  {/* <td className="px-6 py-4">
                     <span className="inline-block bg-zinc-800/50 text-white px-3 py-1 rounded text-xs font-mono font-medium">
                       {endpoint.method}
                     </span>
-                  </td>
+                  </td> */}
                   <td className="px-6 py-4 text-sm font-mono text-zinc-400">
                     {endpoint.endpointPath}
                   </td>
@@ -123,9 +120,9 @@ export function EndpointsTable() {
         {/* Mobile Table */}
         <div className="md:hidden">
           <div className="flex border-b border-zinc-800/50 bg-zinc-900/30">
-            <div className="flex-1 text-xs font-medium text-zinc-400 px-4 py-3">
+            {/* <div className="flex-1 text-xs font-medium text-zinc-400 px-4 py-3">
               Method
-            </div>
+            </div> */}
             <div className="flex-1 text-xs font-medium text-zinc-400 px-4 py-3">
               Route
             </div>
@@ -138,11 +135,11 @@ export function EndpointsTable() {
               key={index}
               className="flex border-b border-zinc-800/30 last:border-0 items-center"
             >
-              <div className="flex-1 px-4 py-4">
+              {/* <div className="flex-1 px-4 py-4">
                 <span className="inline-block bg-zinc-800/50 text-white px-3 py-1 rounded text-xs font-mono font-medium">
                   {endpoint.method}
                 </span>
-              </div>
+              </div> */}
               <div className="flex-1 px-4 py-4 text-sm font-mono">
                 {endpoint.endpointPath}
               </div>

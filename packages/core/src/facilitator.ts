@@ -234,10 +234,10 @@ export class Facilitator {
       ([path, config]) => {
         // Type guard: check if config is a RouteConfig object (has price and network properties)
         const isRouteConfig =
-          typeof config === 'object' &&
+          typeof config === "object" &&
           config !== null &&
-          'price' in config &&
-          'network' in config;
+          "price" in config &&
+          "network" in config;
 
         // Get usage stats for this endpoint (if available)
         const stats = statsMap.get(path);
@@ -527,6 +527,93 @@ export class Facilitator {
   }
 
   /**
+   * Gets the USDC balance of the facilitator wallet
+   *
+   * @param network - The network to check balance on
+   * @returns Balance in token base units (e.g., 1000000 = 1 USDC)
+   */
+  public async getBalance(network: string): Promise<{
+    success: boolean;
+    balance?: number;
+    errorReason?: string;
+  }> {
+    // Validate network is Solana
+    if (network !== "solana" && network !== "solana-devnet") {
+      return {
+        success: false,
+        errorReason: "Balance check only supported on Solana networks",
+      };
+    }
+
+    // Validate we have Solana private key
+    if (!this.solanaPrivateKey) {
+      return {
+        success: false,
+        errorReason: "Solana private key not configured",
+      };
+    }
+
+    try {
+      const { Connection, clusterApiUrl, PublicKey, Keypair } = await import(
+        "@solana/web3.js"
+      );
+
+      const bs58 = await import("bs58");
+
+      // Setup connection
+      const endpoint =
+        network === "solana"
+          ? clusterApiUrl("mainnet-beta")
+          : clusterApiUrl("devnet");
+      const connection = new Connection(endpoint, "confirmed");
+
+      // Create keypair from private key
+      const secretKey = bs58.default.decode(this.solanaPrivateKey);
+      const payerKeypair = Keypair.fromSecretKey(secretKey);
+
+      // USDC mint addresses
+      const USDC_MINT_DEVNET = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
+      const USDC_MINT_MAINNET =
+        "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+
+      const usdcMint =
+        network === "solana" ? USDC_MINT_MAINNET : USDC_MINT_DEVNET;
+
+      // Get USDC balance
+      const { getAssociatedTokenAddress, getAccount } = await import(
+        "@solana/spl-token"
+      );
+
+      const mintPubkey = new PublicKey(usdcMint);
+      const tokenAccount = await getAssociatedTokenAddress(
+        mintPubkey,
+        payerKeypair.publicKey
+      );
+
+      try {
+        const account = await getAccount(connection, tokenAccount);
+        return {
+          success: true,
+          balance: Number(account.amount),
+        };
+      } catch {
+        // Token account doesn't exist, balance is 0
+        return {
+          success: true,
+          balance: 0,
+        };
+      }
+    } catch (error) {
+      console.error("Balance check error:", error);
+      return {
+        success: false,
+        errorReason:
+          error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
+  /**
    * handleRequest()
    *
    * Framework-agnostic HTTP request handler for facilitator endpoints.
@@ -701,6 +788,36 @@ export class Facilitator {
           status: 500,
           body: {
             error: "Failed to fetch transactions",
+            message: error instanceof Error ? error.message : "Unknown error",
+          },
+        };
+      }
+    }
+
+    // GET /balance
+    if (method === "GET" && path.includes("/balance")) {
+      try {
+        const url = new URL(path, "http://localhost");
+        const network = url.searchParams.get("network");
+
+        if (!network) {
+          return {
+            status: 400,
+            body: { error: "Missing required parameter: network" },
+          };
+        }
+
+        const result = await this.getBalance(network);
+
+        return {
+          status: result.success ? 200 : 400,
+          body: result,
+        };
+      } catch (error) {
+        return {
+          status: 500,
+          body: {
+            error: "Failed to fetch balance",
             message: error instanceof Error ? error.message : "Unknown error",
           },
         };

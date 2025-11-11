@@ -10,7 +10,7 @@ import { WithdrawModal } from "./components/withdraw-modal";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { signOut, useSession } from "next-auth/react";
 import Image from "next/image";
-import { fetchTransactions } from "@/lib/api";
+import { fetchTransactions, fetchBalance } from "@/lib/api";
 import { LogOut, TrendingDown, TrendingUp, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -1538,6 +1538,7 @@ function calculateRevenueChange(transactions: Transaction[]): number {
 export default function DashboardPage() {
   const [selectedPeriod, setSelectedPeriod] = useState("1 Year");
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
+  const [usdcBalance, setUsdcBalance] = useState<number>(0);
 
   const router = useRouter();
   const { data: session } = useSession();
@@ -1549,7 +1550,74 @@ export default function DashboardPage() {
     }
   }, [session, router]);
 
-  const { publicKey, disconnect } = useWallet();
+  // Load wallet balance
+  useEffect(() => {
+    const loadBalance = async () => {
+      try {
+        // Load USDC balance on devnet
+        const usdcResult = await fetchBalance("solana-devnet");
+        if (usdcResult.success && usdcResult.balance !== undefined) {
+          setUsdcBalance(usdcResult.balance / 1_000_000);
+        }
+      } catch (err) {
+        console.error("Failed to load balance:", err);
+      }
+    };
+
+    if (session) {
+      loadBalance();
+      // Refresh every 30 seconds
+      const interval = setInterval(loadBalance, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [session]);
+
+  const { publicKey, disconnect, connect, connected, wallet, select, wallets } = useWallet();
+
+  // Detect wallet changes and log out if wallet address changes
+  useEffect(() => {
+    if (session && publicKey) {
+      const sessionWallet = (session.user as any)?.walletAddress; // The wallet address from session
+      const currentWallet = publicKey.toBase58();
+
+      // If the connected wallet doesn't match the authenticated wallet, log out
+      if (sessionWallet && sessionWallet !== currentWallet) {
+        console.log("Wallet mismatch detected!");
+        console.log("Session wallet:", sessionWallet);
+        console.log("Current wallet:", currentWallet);
+        console.log("Logging out...");
+        disconnect();
+        signOut({ redirect: true, callbackUrl: "/" });
+      }
+    }
+  }, [session, publicKey, disconnect]);
+
+  // Auto-reconnect wallet if disconnected but session exists
+  useEffect(() => {
+    const reconnectWallet = async () => {
+      if (session && !connected) {
+        // If no wallet is selected but wallets are available, select the first one
+        if (!wallet && wallets.length > 0) {
+          try {
+            select(wallets[0].adapter.name);
+          } catch (err) {
+            console.error("Failed to select wallet:", err);
+          }
+        }
+
+        // If wallet is selected but not connected, try to connect
+        if (wallet) {
+          try {
+            await connect();
+          } catch (err) {
+            console.error("Failed to reconnect wallet:", err);
+          }
+        }
+      }
+    };
+
+    reconnectWallet();
+  }, [session, connected, wallet, wallets, connect, select]);
 
   const { data, error: transactionsError } = useSWR(
     "transactions",
@@ -1632,13 +1700,21 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <Button
-              onClick={() => setIsWithdrawModalOpen(true)}
-              className="bg-zinc-800/80 hover:bg-zinc-700 text-white border border-zinc-700/50 gap-2 rounded-full px-6"
-            >
-              <Upload className="w-4 h-4" />
-              withdraw
-            </Button>
+            <div className="flex flex-col items-end gap-3">
+              {/* Balance Display */}
+              <div className="bg-zinc-900/50 rounded-2xl px-4 py-2 border border-zinc-800/50">
+                <div className="text-xs text-zinc-400 mb-1">Available Balance</div>
+                <div className="text-2xl font-bold">${usdcBalance.toFixed(2)} USDC</div>
+              </div>
+
+              <Button
+                onClick={() => setIsWithdrawModalOpen(true)}
+                className="bg-zinc-800/80 hover:bg-zinc-700 text-white border border-zinc-700/50 gap-2 rounded-full px-6"
+              >
+                <Upload className="w-4 h-4" />
+                withdraw
+              </Button>
+            </div>
           </div>
 
           {/* Time Period Selector - Mobile */}
