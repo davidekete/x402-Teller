@@ -69,7 +69,6 @@ bun install
 
 ### 2. Set Up Environment Variables
 
-
 ```bash
 # Solana example (example-express)
 SOLANA_PRIVATE_KEY=your_base58_private_key
@@ -98,7 +97,6 @@ cd packages/example-express
 bun run dev
 ```
 
-
 ```bash
 bun run dev
 ```
@@ -117,7 +115,6 @@ The dashboard will be available at `http://localhost:3001`. Sign in with the fac
 Point your `paymentMiddleware` at your facilitator:
 
 ```ts
-
 paymentMiddleware(
   "your_receiving_address",
   {
@@ -141,15 +138,15 @@ Now your API accepts x402 payments through your own facilitator!
 
 The facilitator exposes these endpoints:
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/supported` | List supported payment networks and kinds |
-| `GET` | `/public-keys` | Return facilitator's public keys (for authentication) |
-| `POST` | `/verify` | Verify a payment authorization is valid |
-| `POST` | `/settle` | Execute payment settlement on-chain |
-| `GET` | `/dashboard` | Dashboard statistics (total transactions, volume, success rate) |
-| `GET` | `/dashboard/transactions?limit=20&offset=0` | Paginated transaction history with optional filters |
-| `GET` | `/dashboard/endpoints?timeframe=24h` | Endpoint statistics with usage analytics |
+| Method | Endpoint                                    | Description                                                     |
+| ------ | ------------------------------------------- | --------------------------------------------------------------- |
+| `GET`  | `/supported`                                | List supported payment networks and kinds                       |
+| `GET`  | `/public-keys`                              | Return facilitator's public keys (for authentication)           |
+| `POST` | `/verify`                                   | Verify a payment authorization is valid                         |
+| `POST` | `/settle`                                   | Execute payment settlement on-chain                             |
+| `GET`  | `/dashboard`                                | Dashboard statistics (total transactions, volume, success rate) |
+| `GET`  | `/dashboard/transactions?limit=20&offset=0` | Paginated transaction history with optional filters             |
+| `GET`  | `/dashboard/endpoints?timeframe=24h`        | Endpoint statistics with usage analytics                        |
 
 ## Core Package API
 
@@ -227,7 +224,6 @@ This ensures that only you can view your payment data and transaction history.
 ## Framework Adapters
 
 Built-in adapters make integration easy:
-
 
 ```ts
 
