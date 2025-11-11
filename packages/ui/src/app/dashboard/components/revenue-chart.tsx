@@ -8,21 +8,6 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 
-const defaultChartData = [
-  { month: "Jan", revenue: 5200 },
-  { month: "Feb", revenue: 5800 },
-  { month: "Mar", revenue: 5400 },
-  { month: "Apr", revenue: 6200 },
-  { month: "May", revenue: 6800 },
-  { month: "Jun", revenue: 6400 },
-  { month: "Jul", revenue: 7200 },
-  { month: "Aug", revenue: 8800 },
-  { month: "Sep", revenue: 8200 },
-  { month: "Oct", revenue: 9400 },
-  { month: "Nov", revenue: 10200 },
-  { month: "Dec", revenue: 11000 },
-];
-
 const chartConfig = {
   revenue: {
     label: "Revenue",
@@ -30,12 +15,77 @@ const chartConfig = {
   },
 };
 
-interface RevenueChartProps {
-  chartData?: Array<{ month: string; revenue: number }>;
+export interface Transaction {
+  txID: number;
+  client: string;
+  txHash: string;
+  amount: string;
+  endpoint: string;
+  network?: string | null;
+  asset?: string | null;
+  status: "pending" | "verified" | "settled" | "failed";
+  time: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-export function RevenueChart({ chartData }: RevenueChartProps) {
-  const data = chartData && chartData.length > 0 ? chartData : defaultChartData;
+interface RevenueChartProps {
+  transactions: Transaction[];
+}
+
+function computeChartDataFromTransactions(transactions: Transaction[]) {
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+
+  const currentYear = new Date().getFullYear();
+  const sums = new Array(12).fill(0);
+
+  for (const tx of transactions) {
+    if (tx.status !== "settled") continue;
+
+    const timeStr = tx.time ?? tx.createdAt ?? tx.updatedAt;
+    if (!timeStr) continue;
+
+    const date = new Date(timeStr);
+    if (isNaN(date.getTime())) continue;
+
+    // Only include transactions from the current year
+    if (date.getFullYear() !== currentYear) continue;
+
+    const month = date.getMonth(); // 0-11
+
+    // sanitize amount string (remove currency symbols, commas, whitespace)
+    const raw =
+      typeof tx.amount === "string"
+        ? tx.amount.replace(/[^0-9.-]/g, "")
+        : String(tx.amount);
+    const num = parseFloat(raw);
+    if (isNaN(num)) continue;
+
+    sums[month] += num;
+  }
+
+  return monthNames.map((m, i) => ({ month: m, revenue: Math.round(sums[i]) }));
+}
+
+export function RevenueChart({ transactions }: RevenueChartProps) {
+  const computedChartData =
+    transactions && transactions.length > 0
+      ? computeChartDataFromTransactions(transactions)
+      : undefined;
+  const data = computedChartData;
 
   return (
     <Card className="bg-[#0f0f0f] border-zinc-800/50 p-4 md:p-6">
@@ -45,7 +95,7 @@ export function RevenueChart({ chartData }: RevenueChartProps) {
       >
         <AreaChart
           data={data}
-          margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+          margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
         >
           <defs>
             <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
@@ -78,7 +128,14 @@ export function RevenueChart({ chartData }: RevenueChartProps) {
             axisLine={false}
             tickMargin={8}
             tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 12 }}
-            tickFormatter={(value) => `${(value / 1000).toFixed(0)},000`}
+            tickFormatter={(value) => {
+              const num = Number(value ?? 0);
+              if (Number.isNaN(num)) return "";
+              // Format with thousand separators, no fraction digits
+              return new Intl.NumberFormat("en-US", {
+                maximumFractionDigits: 0,
+              }).format(num);
+            }}
             ticks={[0, 2000, 4000, 6000, 8000, 10000, 12000]}
           />
           <ChartTooltip

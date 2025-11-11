@@ -5,32 +5,53 @@ import useSWR from "swr";
 import { Card } from "@/components/ui/card";
 import { fetchEndpointStats, type EndpointStat } from "../../../lib/api";
 
-const defaultEndpoints: EndpointStat[] = [
-  {
-    method: "POST",
-    route: "/api/generate",
-    pricePerUnit: "0.05 / call",
-    calls24h: "12,450",
-    isActive: true,
-  },
-  {
-    method: "GET",
-    route: "/api/verify",
-    pricePerUnit: "0.01 / unit",
-    calls24h: "25,120",
-    isActive: true,
-  },
-  {
-    method: "POST",
-    route: "/api/ingest",
-    pricePerUnit: "0.10 / record",
-    calls24h: "450",
-    isActive: true,
-  },
-];
+const defaultEndpoints: EndpointStat = {
+  endpoints: [
+    {
+      method: "GET",
+      endpointPath: "/api/generate",
+      numberOfCalls: 12450,
+      successfulCalls: 12300,
+      failedCalls: 150,
+      totalRevenue: 622.5,
+      averageAmount: 0.05,
+      lastAccessed: new Date("2025-11-10T08:30:00.000Z"),
+      price: "0.05 / call",
+      network: "mainnet",
+      description: "Generates content from prompts",
+    },
+    {
+      method: "GET",
+      endpointPath: "/api/verify",
+      numberOfCalls: 25120,
+      successfulCalls: 24900,
+      failedCalls: 220,
+      totalRevenue: 251.2,
+      averageAmount: 0.01,
+      lastAccessed: new Date("2025-11-10T09:15:00.000Z"),
+      price: "0.01 / unit",
+      network: "mainnet",
+      description: "Verifies input and returns validation results",
+    },
+    {
+      method: "GET",
+      endpointPath: "/api/ingest",
+      numberOfCalls: 450,
+      successfulCalls: 445,
+      failedCalls: 5,
+      totalRevenue: 45.0,
+      averageAmount: 0.1,
+      lastAccessed: null,
+      price: "0.10 / record",
+      network: "ingest-net",
+      description: "Ingests data records for processing",
+    },
+  ],
+  totalCount: 3,
+};
 
 export function EndpointsTable() {
-  const [timeframe, setTimeframe] = useState("24h");
+  const [timeframe] = useState("24h");
 
   const { data, error } = useSWR(
     `endpoints-${timeframe}`,
@@ -40,13 +61,12 @@ export function EndpointsTable() {
       revalidateOnFocus: true,
     }
   );
-
   const endpoints = data || defaultEndpoints;
-  const activeCount = endpoints.filter((e) => e.isActive).length;
+  const activeCount = endpoints.totalCount;
 
   return (
-    <div>
-      <div className="flex items-center gap-2 mb-4">
+    <div className="basis-2/5">
+      <div className="flex items-center gap-2 mb-6">
         <h3 className="text-2xl font-bold">Endpoints</h3>
         <div className="flex items-center gap-1.5">
           <div className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -70,12 +90,12 @@ export function EndpointsTable() {
                   Price/Unit
                 </th>
                 <th className="text-left text-sm font-medium text-zinc-400 px-6 py-4">
-                  Calls (24h)
+                  Calls
                 </th>
               </tr>
             </thead>
             <tbody>
-              {endpoints.map((endpoint, index) => (
+              {endpoints.endpoints.map((endpoint, index) => (
                 <tr
                   key={index}
                   className="border-b border-zinc-800/30 last:border-0"
@@ -85,11 +105,15 @@ export function EndpointsTable() {
                       {endpoint.method}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm font-mono">
-                    {endpoint.route}
+                  <td className="px-6 py-4 text-sm font-mono text-zinc-400">
+                    {endpoint.endpointPath}
                   </td>
-                  <td className="px-6 py-4 text-sm">{endpoint.pricePerUnit}</td>
-                  <td className="px-6 py-4 text-sm">{endpoint.calls24h}</td>
+                  <td className="px-6 py-4 text-sm text-zinc-400">
+                    {endpoint.price}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-zinc-400">
+                    {endpoint.numberOfCalls}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -109,7 +133,7 @@ export function EndpointsTable() {
               Price/Unit
             </div>
           </div>
-          {endpoints.map((endpoint, index) => (
+          {endpoints.endpoints.map((endpoint, index) => (
             <div
               key={index}
               className="flex border-b border-zinc-800/30 last:border-0 items-center"
@@ -120,11 +144,9 @@ export function EndpointsTable() {
                 </span>
               </div>
               <div className="flex-1 px-4 py-4 text-sm font-mono">
-                {endpoint.route}
+                {endpoint.endpointPath}
               </div>
-              <div className="flex-1 px-4 py-4 text-sm">
-                {endpoint.pricePerUnit}
-              </div>
+              <div className="flex-1 px-4 py-4 text-sm">{endpoint.price}</div>
             </div>
           ))}
         </div>

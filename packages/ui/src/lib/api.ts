@@ -1,37 +1,46 @@
 // API configuration and helper functions
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3000";
+  (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3000") +
+  "/facilitator";
 
 export interface DashboardStats {
-  totalRevenue: number;
-  revenueChange: number;
   totalTransactions: number;
+  pendingTransactions: number;
+  verifiedTransactions: number;
+  settledTransactions: number;
+  failedTransactions: number;
   totalVolume: number;
-  successRate: number;
-  chartData: Array<{ month: string; revenue: number }>;
+  uniqueClients: number;
 }
-
 export interface Transaction {
-  wallet: string;
-  paymentId: string;
-  amount: number;
-  status: "paid" | "pending" | "failed";
-  timestamp: string;
+  txID: number;
+  client: string;
+  txHash: string;
+  amount: string;
+  endpoint: string;
+  network?: string | null;
+  asset?: string | null;
+  status: "pending" | "verified" | "settled" | "failed";
+  time: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface EndpointStat {
-  method: string;
-  route: string;
-  pricePerUnit: string;
-  calls24h: string;
-  isActive: boolean;
-}
-
-export interface PaginatedResponse<T> {
-  data: T[];
-  total: number;
-  limit: number;
-  offset: number;
+  endpoints: {
+    method: string;
+    endpointPath: string;
+    numberOfCalls: number;
+    successfulCalls: number;
+    failedCalls: number;
+    totalRevenue: number;
+    averageAmount: number;
+    lastAccessed: Date | null;
+    price: string;
+    network: string;
+    description: string;
+  }[];
+  totalCount: number;
 }
 
 // Fetch dashboard statistics
@@ -56,11 +65,9 @@ export async function fetchTransactions(
   limit = 20,
   offset = 0,
   filters?: {
-    status?: string;
-    startDate?: string;
-    endDate?: string;
+    status?: "pending" | "verified" | "settled" | "failed";
   }
-): Promise<PaginatedResponse<Transaction>> {
+): Promise<Transaction[]> {
   const params = new URLSearchParams({
     limit: limit.toString(),
     offset: offset.toString(),
@@ -68,12 +75,6 @@ export async function fetchTransactions(
 
   if (filters?.status) {
     params.append("status", filters.status);
-  }
-  if (filters?.startDate) {
-    params.append("startDate", filters.startDate);
-  }
-  if (filters?.endDate) {
-    params.append("endDate", filters.endDate);
   }
 
   const response = await fetch(
@@ -97,7 +98,7 @@ export async function fetchTransactions(
 // Fetch endpoint statistics
 export async function fetchEndpointStats(
   timeframe = "24h"
-): Promise<EndpointStat[]> {
+): Promise<EndpointStat> {
   const response = await fetch(
     `${API_BASE_URL}/dashboard/endpoints?timeframe=${timeframe}`,
     {
