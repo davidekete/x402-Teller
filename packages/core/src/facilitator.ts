@@ -1,15 +1,11 @@
-import type { Chain } from "viem";
 import { toX402Network, isSolanaNetwork } from "./utils";
-import { privateKeyToAccount } from "viem/accounts";
 import { Keypair } from "@solana/web3.js";
 import bs58 from "bs58";
 
 import { verify as x402Verify, settle as x402Settle } from "x402/facilitator";
 
 import {
-  createConnectedClient,
   createSigner,
-  SupportedEVMNetworks,
   SupportedSVMNetworks,
 } from "x402/types";
 
@@ -25,7 +21,6 @@ import type {
 import {
   createTransaction,
   getAllTransactions,
-  getDashboardStats,
   updateTransactionStatus,
   getEndpointStats,
 } from "./dashboard/utils/record";
@@ -44,7 +39,7 @@ export interface PaymentPayload {
 }
 
 export interface PaymentRequirements {
-  network: string; // e.g. "base-sepolia"
+  network: string; // e.g. "solana-devnet"
   [key: string]: any;
 }
 
@@ -56,10 +51,9 @@ export interface VerifyResult {
 export type SolanaNetwork = "solana" | "solana-devnet";
 
 export interface CreateFacilitatorOptions {
-  evmPrivateKey?: string;
-  solanaPrivateKey?: string;
-  solanaFeePayer?: string; // Solana public address for fee payer
-  networks: (Chain | SolanaNetwork)[];
+  solanaPrivateKey: string;
+  solanaFeePayer: string; // Solana public address for fee payer
+  networks: SolanaNetwork[];
   minConfirmations?: number;
   enableDashboard?: boolean; // Enable transaction tracking to database
   dashboardOptions?: {
@@ -94,41 +88,32 @@ export interface HttpRequest {
 }
 
 export class Facilitator {
-  private readonly evmPrivateKey?: string;
-  private readonly solanaPrivateKey?: string;
-  private readonly solanaFeePayer?: string;
-  private readonly networks: (Chain | SolanaNetwork)[];
+  private readonly solanaPrivateKey: string;
+  private readonly solanaFeePayer: string;
+  private readonly networks: SolanaNetwork[];
   private readonly minConfirmations: number;
   private readonly enableDashboard: boolean;
   private readonly payWallRoutes?: RoutesConfig;
   private dashboardReady: Promise<void> | null = null;
 
-  // Public keys derived from private keys
-  public evmPublicKey?: string;
-  public solanaPublicKey?: string;
+  // Public key derived from private key
+  public solanaPublicKey: string;
 
   constructor(options: CreateFacilitatorOptions) {
-    if (!options.evmPrivateKey && !options.solanaPrivateKey) {
+    if (!options.solanaPrivateKey) {
       throw new Error(
-        "Facilitator: at least one private key (evmPrivateKey or solanaPrivateKey) is required"
+        "Facilitator: solanaPrivateKey is required"
+      );
+    }
+    if (!options.solanaFeePayer) {
+      throw new Error(
+        "Facilitator: solanaFeePayer is required"
       );
     }
     if (!options.networks || options.networks.length === 0) {
       throw new Error("Facilitator: at least one network is required");
     }
 
-    // Validate that if Solana networks are configured, we have a fee payer
-    const hasSolanaNetworks = options.networks.some(
-      (net) =>
-        typeof net === "string" && (net === "solana" || net === "solana-devnet")
-    );
-    if (hasSolanaNetworks && !options.solanaFeePayer) {
-      throw new Error(
-        "Facilitator: solanaFeePayer is required when using Solana networks"
-      );
-    }
-
-    this.evmPrivateKey = options.evmPrivateKey;
     this.solanaPrivateKey = options.solanaPrivateKey;
     this.solanaFeePayer = options.solanaFeePayer;
     this.networks = options.networks;
@@ -144,13 +129,8 @@ export class Facilitator {
       );
     }
 
-    // Derive and store public keys from private keys
-    if (this.evmPrivateKey) {
-      this.evmPublicKey = this.deriveEvmPublicKey(this.evmPrivateKey);
-    }
-    if (this.solanaPrivateKey) {
-      this.solanaPublicKey = this.deriveSolanaPublicKey(this.solanaPrivateKey);
-    }
+    // Derive and store public key from private key
+    this.solanaPublicKey = this.deriveSolanaPublicKey(this.solanaPrivateKey);
 
     // Auto-initialize dashboard if enabled and autoInit is true (default)
     const autoInit = options.dashboardOptions?.autoInit ?? true;
@@ -158,15 +138,6 @@ export class Facilitator {
       const force = options.dashboardOptions?.force ?? false;
       this.dashboardReady = this.initDashboard(force);
     }
-  }
-
-  /**
-   * Derives the EVM public address from a private key
-   * @private
-   */
-  private deriveEvmPublicKey(privateKey: string): string {
-    const account = privateKeyToAccount(privateKey as `0x${string}`);
-    return account.address;
   }
 
   /**
@@ -342,27 +313,17 @@ export class Facilitator {
     }
 
     // Check if network is supported by x402
-    const isEVM = SupportedEVMNetworks.includes(requestedNetwork as any);
     const isSVM = SupportedSVMNetworks.includes(requestedNetwork as any);
 
-    if (!isEVM && !isSVM) {
+    if (!isSVM) {
       return { isValid: false };
     }
 
     // For Solana, verification requires a signer (to simulate the transaction)
-    // For EVM, we can use just a client (read-only operations)
-    let clientOrSigner;
-    if (isSVM) {
-      if (!this.solanaPrivateKey) {
-        return { isValid: false };
-      }
-      clientOrSigner = await createSigner(
-        requestedNetwork,
-        this.solanaPrivateKey
-      );
-    } else {
-      clientOrSigner = createConnectedClient(requestedNetwork);
-    }
+    const clientOrSigner = await createSigner(
+      requestedNetwork,
+      this.solanaPrivateKey
+    );
 
     const resp: X402VerifyResponse = await x402Verify(
       clientOrSigner,
@@ -439,42 +400,18 @@ export class Facilitator {
     }
 
     // Check if network is supported by x402
-    const isEVM = SupportedEVMNetworks.includes(requestedNetwork as any);
     const isSVM = SupportedSVMNetworks.includes(requestedNetwork as any);
 
-    if (!isEVM && !isSVM) {
+    if (!isSVM) {
       return {
         success: false,
         transaction: "",
         network: requestedNetwork,
+        errorReason: "Only Solana networks are supported",
       };
     }
 
-    // Determine which private key to use
-    let privateKey: string;
-    if (isSVM) {
-      if (!this.solanaPrivateKey) {
-        return {
-          success: false,
-          transaction: "",
-          network: requestedNetwork,
-          errorReason: "Solana private key not configured",
-        };
-      }
-      privateKey = this.solanaPrivateKey;
-    } else {
-      if (!this.evmPrivateKey) {
-        return {
-          success: false,
-          transaction: "",
-          network: requestedNetwork,
-          errorReason: "EVM private key not configured",
-        };
-      }
-      privateKey = this.evmPrivateKey;
-    }
-
-    const signer = await createSigner(requestedNetwork, privateKey);
+    const signer = await createSigner(requestedNetwork, this.solanaPrivateKey);
 
     const resp: X402SettleResponse = await x402Settle(
       signer,
@@ -649,7 +586,6 @@ export class Facilitator {
       return {
         status: 200,
         body: {
-          evmPublicKey: this.evmPublicKey,
           solanaPublicKey: this.solanaPublicKey,
         },
       };
@@ -709,25 +645,6 @@ export class Facilitator {
           status: 400,
           body: {
             error: "Failed to settle payment",
-            message: error instanceof Error ? error.message : "Unknown error",
-          },
-        };
-      }
-    }
-
-    //Get /dashboard
-    if (method === "GET" && path === "/dashboard") {
-      try {
-        const stats = await getDashboardStats();
-        return {
-          status: 200,
-          body: stats,
-        };
-      } catch (error) {
-        return {
-          status: 500,
-          body: {
-            error: "Failed to fetch dashboard stats",
             message: error instanceof Error ? error.message : "Unknown error",
           },
         };
