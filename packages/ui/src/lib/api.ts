@@ -28,7 +28,6 @@ export interface Transaction {
 
 export interface EndpointStat {
   endpoints: {
-    method: string;
     endpointPath: string;
     numberOfCalls: number;
     successfulCalls: number;
@@ -162,6 +161,26 @@ export async function settlePayment(settlementData: any) {
 
   if (!response.ok) {
     throw new Error("Failed to settle payment");
+  }
+
+  return response.json();
+}
+
+// Fetch wallet balance
+export async function fetchBalance(
+  network: string
+): Promise<{ success: boolean; balance?: number; errorReason?: string }> {
+  const params = new URLSearchParams({ network });
+
+  const response = await fetch(`${API_BASE_URL}/balance?${params.toString()}`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch balance");
   }
 
   return response.json();

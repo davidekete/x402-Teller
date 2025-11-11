@@ -11,6 +11,7 @@ import type { Facilitator } from "../facilitator";
  * - POST /settle - Settles a payment on-chain
  * - GET /dashboard - Returns dashboard statistics
  * - GET /dashboard/transactions - Returns transaction history
+ * - GET /balance - Gets USDC balance of facilitator wallet
  *
  * @param facilitator The Facilitator instance to use
  * @param router The Express router to mount the endpoints on
@@ -172,4 +173,23 @@ export function createExpressAdapter(
       }
     }
   );
+
+  router.get(normalizePath("/balance"), async (req: Request, res: Response) => {
+    try {
+      // Build query string from request query parameters
+      const queryString = new URLSearchParams(req.query as any).toString();
+      const path = queryString ? `/balance?${queryString}` : "/balance";
+
+      const response = await facilitator.handleRequest({
+        method: "GET",
+        path,
+      });
+      res.status(response.status).json(response.body);
+    } catch (error) {
+      res.status(500).json({
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
 }

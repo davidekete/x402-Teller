@@ -203,7 +203,7 @@ export function PaymentsTable({
                   Wallet
                 </th>
                 <th className="text-left text-sm font-medium text-zinc-400 px-6 py-4">
-                  Payment ID
+                  Tx Hash
                 </th>
                 <th className="text-left text-sm font-medium text-zinc-400 px-6 py-4">
                   Amount (USDC)
