@@ -9,8 +9,8 @@ import type { Facilitator } from "../facilitator";
  * - GET /public-keys - Returns facilitator's public keys
  * - POST /verify - Verifies a payment authorization
  * - POST /settle - Settles a payment on-chain
- * - GET /dashboard - Returns dashboard statistics
  * - GET /dashboard/transactions - Returns transaction history
+ * - GET /dashboard/endpoints - Returns endpoint statistics
  * - GET /balance - Gets USDC balance of facilitator wallet
  *
  * @param facilitator The Facilitator instance to use
@@ -113,24 +113,6 @@ export function createExpressAdapter(
       });
     }
   });
-
-  router.get(
-    normalizePath("/dashboard"),
-    async (req: Request, res: Response) => {
-      try {
-        const response = await facilitator.handleRequest({
-          method: "GET",
-          path: "/dashboard",
-        });
-        res.status(response.status).json(response.body);
-      } catch (error) {
-        res.status(500).json({
-          error: "Internal server error",
-          message: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
-    }
-  );
 
   router.get(
     normalizePath("/dashboard/transactions"),

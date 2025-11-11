@@ -21,7 +21,6 @@ import type {
 import {
   createTransaction,
   getAllTransactions,
-  getDashboardStats,
   updateTransactionStatus,
   getEndpointStats,
 } from "./dashboard/utils/record";
@@ -646,25 +645,6 @@ export class Facilitator {
           status: 400,
           body: {
             error: "Failed to settle payment",
-            message: error instanceof Error ? error.message : "Unknown error",
-          },
-        };
-      }
-    }
-
-    //Get /dashboard
-    if (method === "GET" && path === "/dashboard") {
-      try {
-        const stats = await getDashboardStats();
-        return {
-          status: 200,
-          body: stats,
-        };
-      } catch (error) {
-        return {
-          status: 500,
-          body: {
-            error: "Failed to fetch dashboard stats",
             message: error instanceof Error ? error.message : "Unknown error",
           },
         };

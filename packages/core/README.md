@@ -90,11 +90,11 @@ const result = await facilitator.verifyPayment(paymentPayload, paymentRequiremen
 // POST /settle
 const settlement = await facilitator.settlePayment(paymentPayload, paymentRequirements);
 
-// GET /dashboard
-const stats = await facilitator.getDashboardStats();
+// GET /balance?network=solana-devnet
+const balance = await facilitator.getBalance("solana-devnet");
 
-// GET /dashboard/transactions?limit=20&offset=0
-const transactions = await facilitator.getTransactions(20, 0);
+// GET /dashboard/endpoints?timeframe=24h
+const endpoints = await facilitator.getPaywallEndpoints("24h");
 ```
 
 ### Configuring Your API

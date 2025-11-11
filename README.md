@@ -129,15 +129,15 @@ Now your API accepts x402 payments through your own facilitator!
 
 The facilitator exposes these endpoints:
 
-| Method | Endpoint                                    | Description                                                     |
-| ------ | ------------------------------------------- | --------------------------------------------------------------- |
-| `GET`  | `/supported`                                | List supported payment networks and kinds                       |
-| `GET`  | `/public-keys`                              | Return facilitator's public keys (for authentication)           |
-| `POST` | `/verify`                                   | Verify a payment authorization is valid                         |
-| `POST` | `/settle`                                   | Execute payment settlement on-chain                             |
-| `GET`  | `/dashboard`                                | Dashboard statistics (total transactions, volume, success rate) |
-| `GET`  | `/dashboard/transactions?limit=20&offset=0` | Paginated transaction history with optional filters             |
-| `GET`  | `/dashboard/endpoints?timeframe=24h`        | Endpoint statistics with usage analytics                        |
+| Method | Endpoint                                    | Description                                             |
+| ------ | ------------------------------------------- | ------------------------------------------------------- |
+| `GET`  | `/supported`                                | List supported payment networks and kinds               |
+| `GET`  | `/public-keys`                              | Return facilitator's public keys (for authentication)   |
+| `POST` | `/verify`                                   | Verify a payment authorization is valid                 |
+| `POST` | `/settle`                                   | Execute payment settlement on-chain                     |
+| `GET`  | `/balance?network=solana-devnet`            | Get USDC balance of facilitator wallet                  |
+| `GET`  | `/dashboard/transactions?limit=20&offset=0` | Paginated transaction history with optional filters     |
+| `GET`  | `/dashboard/endpoints?timeframe=24h`        | Endpoint statistics with usage analytics                |
 
 ## Core Package API
 
@@ -156,11 +156,10 @@ const facilitator = new Facilitator({
 ### Methods
 
 - **`listSupportedKinds()`** - Returns supported payment networks
-- **`getPublicKeys()`** - Returns facilitator's public keys for authentication
 - **`verifyPayment(payload, requirements)`** - Validates payment authorization
 - **`settlePayment(payload, requirements)`** - Executes on-chain settlement
-- **`getDashboardStats()`** - Returns transaction statistics
-- **`getTransactions(limit?, offset?)`** - Returns paginated transaction history
+- **`getBalance(network)`** - Gets USDC balance of facilitator wallet
+- **`getPaywallEndpoints(timeframe?)`** - Returns endpoint statistics with usage analytics
 
 ---
 
@@ -182,7 +181,7 @@ This ensures that only you can view your payment data and transaction history.
 ### Hot Wallet Warning
 
 - Your Solana private key is a **hot wallet**
-- This key pays gas fees and executes on-chain settlements
+- This key pays gas fees (make sure you have enough SOL in your wallet) and executes on-chain settlements.
 - It has direct access to pull authorized funds from buyers
 - **Never commit private keys to version control**
 - Store them securely using environment variables or KMS
@@ -194,17 +193,13 @@ This ensures that only you can view your payment data and transaction history.
 - Set up alerts for unusual transaction patterns
 - Keep the facilitator wallet funded with just enough for gas fees
 - Regularly rotate keys if possible
-- Use testnet (devnet/sepolia) for development and testing
+- Use devnet for development and testing
 
 ---
 
 ## Framework Adapters
 
 Built-in adapters make integration easy:
-
-```ts
-
-```
 
 ### Express
 
@@ -233,7 +228,7 @@ For other frameworks, use the core methods directly and map them to your routes.
 - **Backend**: Express (framework-agnostic core)
 - **Frontend**: Next.js 15, React 19, Tailwind CSS
 - **Blockchain**: Solana Web3.js
-- **Database**: Sequelize ORM (SQLite/PostgreSQL)
+- **Database**: Sequelize ORM (SQLite)
 - **Auth**: NextAuth.js with Solana wallet adapter
 - **Payment Protocol**: x402
 
