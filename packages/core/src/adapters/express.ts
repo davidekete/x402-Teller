@@ -20,14 +20,14 @@ import type { Facilitator } from "../facilitator";
  * @example
  * import express from "express";
  * import { Facilitator, createExpressAdapter } from "@x402-teller/core";
- * import { baseSepolia } from "viem/chains";
  *
  * const app = express();
  * app.use(express.json());
  *
  * const facilitator = new Facilitator({
- *   evmPrivateKey: process.env.EVM_PRIVATE_KEY!,
- *   networks: [baseSepolia],
+ *   solanaPrivateKey: process.env.SOLANA_PRIVATE_KEY!,
+ *   solanaFeePayer: process.env.SOLANA_PUBLIC_KEY!,
+ *   networks: ["solana-devnet"],
  * });
  *
  * // Mount at root

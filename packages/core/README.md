@@ -1,13 +1,13 @@
 # `@x402-teller/core`
 
-Self-hosted x402 payment facilitator with multi-chain support.
+Self-hosted x402 payment facilitator with Solana support.
 
-This package lets API sellers run their own x402 facilitator instead of relying on third-party services like Coinbase. It supports both Solana and EVM networks with built-in transaction tracking and dashboard capabilities.
+This package lets API sellers run their own x402 facilitator instead of relying on third-party services like Coinbase. It supports Solana networks with built-in transaction tracking and dashboard capabilities.
 
 **What this package provides:**
 
 - Payment verification and on-chain settlement
-- Multi-chain support (Solana mainnet/devnet, Base, Base Sepolia, and other EVM networks)
+- Solana support (mainnet and devnet)
 - Transaction tracking with database models (Sequelize ORM)
 - Dashboard endpoints for analytics and transaction history
 - Public key endpoints for wallet-based authentication
@@ -37,7 +37,6 @@ bun add @x402-teller/core
 **Peer Dependencies:**
 
 - `express` (optional) - if using Express adapter
-- `viem` - for EVM networks
 - `@solana/web3.js` - for Solana networks
 
 ---
@@ -46,7 +45,7 @@ bun add @x402-teller/core
 
 ### Option 1: Using Built-in Adapters (Recommended)
 
-#### With Express (Solana)
+#### With Express
 
 ```ts
 import express from "express";
@@ -57,29 +56,14 @@ app.use(express.json());
 
 const facilitator = new Facilitator({
   solanaPrivateKey: process.env.SOLANA_PRIVATE_KEY!,
-  solanaPublicKey: process.env.SOLANA_PUBLIC_KEY!,
-  networks: ["solana-devnet"], // or "solana-mainnet"
+  solanaFeePayer: process.env.SOLANA_PUBLIC_KEY!,
+  networks: ["solana-devnet"], // or "solana"
 });
 
 // Mounts all facilitator endpoints at /facilitator
 createExpressAdapter(facilitator, app, "/facilitator");
 
 app.listen(3000, () => console.log("Facilitator running on :3000"));
-```
-
-
-```ts
-import { baseSepolia } from "viem/chains";
-
-
-const facilitator = new Facilitator({
-  evmPrivateKey: process.env.EVM_PRIVATE_KEY as `0x${string}`,
-  networks: [baseSepolia], // or base, mainnet, etc.
-});
-
-// Mounts all facilitator endpoints at /facilitator
-
-export default app;
 ```
 
 ### Option 2: Manual Setup (Any Framework)
@@ -91,7 +75,7 @@ import { Facilitator } from "@x402-teller/core";
 
 const facilitator = new Facilitator({
   solanaPrivateKey: process.env.SOLANA_PRIVATE_KEY!,
-  solanaPublicKey: process.env.SOLANA_PUBLIC_KEY!,
+  solanaFeePayer: process.env.SOLANA_PUBLIC_KEY!,
   networks: ["solana-devnet"],
 });
 
@@ -99,9 +83,6 @@ const facilitator = new Facilitator({
 
 // GET /supported
 const supported = facilitator.listSupportedKinds();
-
-// GET /public-keys
-const publicKeys = facilitator.getPublicKeys();
 
 // POST /verify
 const result = await facilitator.verifyPayment(paymentPayload, paymentRequirements);
@@ -127,7 +108,7 @@ paymentMiddleware(
   {
     "/protected-route": {
       price: "$0.10",
-      network: "solana-devnet", // or "base-sepolia"
+      network: "solana-devnet",
       config: { description: "Premium content" },
     },
   },
@@ -149,24 +130,12 @@ Now when clients hit `/protected-route`:
 
 ### Constructor
 
-#### For Solana Networks
-
 ```ts
 new Facilitator({
   solanaPrivateKey: string;    // Base58-encoded private key
-  solanaPublicKey: string;     // Base58-encoded public key
-  networks: string[];          // e.g., ["solana-devnet", "solana-mainnet"]
+  solanaFeePayer: string;      // Base58-encoded public key
+  networks: SolanaNetwork[];   // e.g., ["solana-devnet", "solana"]
   minConfirmations?: number;   // Optional (not enforced yet)
-})
-```
-
-#### For EVM Networks
-
-```ts
-new Facilitator({
-  evmPrivateKey: `0x${string}`; // Hex-encoded private key
-  networks: Chain[];             // Viem Chain objects (e.g., baseSepolia)
-  minConfirmations?: number;     // Optional (not enforced yet)
 })
 ```
 
@@ -181,14 +150,6 @@ Returns the list of supported payment networks and kinds.
 **Used for:** `GET /supported`
 
 ---
-
-#### `getPublicKeys()`
-
-Returns the facilitator's public keys for authentication verification.
-
-**Returns:** `{ solana?: string; evm?: string }`
-
-**Used for:** `GET /public-keys`
 
 ---
 
@@ -308,9 +269,9 @@ For other frameworks, use the Facilitator methods directly and map them to your 
 
 ### Hot Wallet Warning
 
-- Your private keys (`evmPrivateKey` or `solanaPrivateKey`) are **hot wallets**
-- These keys pay gas fees and execute on-chain settlements
-- They have direct access to pull authorized funds from buyers
+- Your Solana private key is a **hot wallet**
+- This key pays gas fees and executes on-chain settlements
+- It has direct access to pull authorized funds from buyers
 - **Never commit private keys to version control**
 - Store them securely using environment variables or KMS
 
@@ -321,7 +282,7 @@ For other frameworks, use the Facilitator methods directly and map them to your 
 - Set up alerts for unusual transaction patterns
 - Keep the facilitator wallet funded with just enough for gas fees
 - Regularly rotate keys if possible
-- Use testnet (devnet/sepolia) for development and testing
+- Use testnet (devnet) for development and testing
 - Implement rate limiting on your facilitator endpoints
 - Use HTTPS in production
 
@@ -343,7 +304,7 @@ Both examples include:
 
 ## What's Included
 
-- ✅ Multi-chain support (Solana & EVM)
+- ✅ Solana support (mainnet and devnet)
 - ✅ Payment verification and settlement
 - ✅ Transaction tracking and database models
 - ✅ Dashboard analytics endpoints

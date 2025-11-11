@@ -2,12 +2,12 @@
 
 Self-hosted payment facilitator for x402 with dashboard.
 
-X402-Teller is a complete solution for running your own x402 payment facilitator. It lets API sellers and content providers accept payments on-chain (Solana & EVM) without relying on third-party facilitators like Coinbase.
+X402-Teller is a complete solution for running your own x402 payment facilitator. It lets API sellers and content providers accept payments on-chain (Solana) without relying on third-party facilitators like Coinbase.
 
 **What you get:**
 
 - Self-hosted payment verification and settlement
-- Multi-chain support (Solana, Base, and other EVM networks)
+- Solana support (mainnet and devnet)
 - Transaction dashboard with analytics and history
 - Wallet-based authentication (Solana Sign-In)
 - Framework adapters for Express
@@ -36,7 +36,7 @@ This is a monorepo containing:
 
 ### Payment Facilitator
 
-- **Multi-chain support**: Solana (mainnet/devnet) and EVM networks (Base, Base Sepolia, etc.)
+- **Solana support**: Solana mainnet and devnet
 - **Framework-agnostic core**: Use with Express or any HTTP server
 - **Automatic settlement**: Pulls authorized funds from buyers on-chain
 - **Transaction tracking**: Built-in database models for monitoring all payments
@@ -56,8 +56,8 @@ This is a monorepo containing:
 ### Prerequisites
 
 - [Bun](https://bun.sh/) installed (package manager)
-- A wallet with funds for gas fees (Solana or EVM network)
-- Private keys for payment settlement
+- A Solana wallet with funds for gas fees
+- Solana private key for payment settlement
 
 ### 1. Clone and Install
 
@@ -74,9 +74,6 @@ bun install
 SOLANA_PRIVATE_KEY=your_base58_private_key
 SOLANA_PUBLIC_KEY=your_public_key
 PORT=3000
-
-EVM_PRIVATE_KEY=0x...
-PORT=3000
 ```
 
 **For the dashboard (packages/ui):**
@@ -90,14 +87,8 @@ NEXT_PUBLIC_FACILITATOR_PUBLIC_KEY=your_solana_public_key
 
 ### 3. Run the Facilitator
 
-**Option A: Solana (Express example)**
-
 ```bash
 cd packages/example-express
-bun run dev
-```
-
-```bash
 bun run dev
 ```
 
@@ -120,7 +111,7 @@ paymentMiddleware(
   {
     "/protected-route": {
       price: "$0.10",
-      network: "solana-devnet", // or "base-sepolia"
+      network: "solana-devnet",
       config: { description: "Premium content" },
     },
   },
@@ -152,27 +143,13 @@ The facilitator exposes these endpoints:
 
 ### Creating a Facilitator
 
-**For EVM Networks:**
-
-```ts
-import { Facilitator } from "@x402-teller/core";
-import { baseSepolia } from "viem/chains";
-
-const facilitator = new Facilitator({
-  evmPrivateKey: process.env.EVM_PRIVATE_KEY as `0x${string}`,
-  networks: [baseSepolia],
-});
-```
-
-**For Solana:**
-
 ```ts
 import { Facilitator } from "@x402-teller/core";
 
 const facilitator = new Facilitator({
-  solanaPrivateKey: process.env.SOLANA_PRIVATE_KEY,
-  solanaPublicKey: process.env.SOLANA_PUBLIC_KEY,
-  networks: ["solana-devnet"], // or "solana-mainnet"
+  solanaPrivateKey: process.env.SOLANA_PRIVATE_KEY!,
+  solanaFeePayer: process.env.SOLANA_PUBLIC_KEY!,
+  networks: ["solana-devnet"], // or "solana"
 });
 ```
 
@@ -204,9 +181,9 @@ This ensures that only you can view your payment data and transaction history.
 
 ### Hot Wallet Warning
 
-- Your private keys (`evmPrivateKey` or `solanaPrivateKey`) are **hot wallets**
-- These keys pay gas fees and execute on-chain settlements
-- They have direct access to pull authorized funds from buyers
+- Your Solana private key is a **hot wallet**
+- This key pays gas fees and executes on-chain settlements
+- It has direct access to pull authorized funds from buyers
 - **Never commit private keys to version control**
 - Store them securely using environment variables or KMS
 
@@ -255,7 +232,7 @@ For other frameworks, use the core methods directly and map them to your routes.
 - **Runtime**: Bun
 - **Backend**: Express (framework-agnostic core)
 - **Frontend**: Next.js 15, React 19, Tailwind CSS
-- **Blockchain**: Viem (EVM), Solana Web3.js
+- **Blockchain**: Solana Web3.js
 - **Database**: Sequelize ORM (SQLite/PostgreSQL)
 - **Auth**: NextAuth.js with Solana wallet adapter
 - **Payment Protocol**: x402
