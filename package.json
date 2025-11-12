@@ -1,5 +1,5 @@
 {
-  "name": "x402-sovereign",
+  "name": "x402-teller",
   "module": "index.ts",
   "type": "module",
   "scripts": {

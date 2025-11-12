@@ -27,6 +27,8 @@ No external facilitator. No third-party dependencies. Your own infrastructure.
 
 This is a monorepo containing:
 
+- **[@x402-teller/core](./packages/core/)** - Core facilitator package (published to npm)
+- **[create-x402-dashboard](./packages/create-x402-dashboard/)** - CLI tool to scaffold the dashboard
 - **[ui](./packages/ui/)** - Next.js dashboard for transaction monitoring and analytics
 - **[example-express](./packages/example-express/)** - Solana devnet example with Express
 
@@ -53,13 +55,64 @@ This is a monorepo containing:
 
 ## Quick Start
 
-### Prerequisites
+### Option 1: Using Published Packages (Recommended)
+
+**1. Install the core package:**
+
+```bash
+npm install @x402-teller/core
+# or
+bun add @x402-teller/core
+```
+
+**2. Set up your facilitator:**
+
+```ts
+import express from "express";
+import { Facilitator, createExpressAdapter } from "@x402-teller/core";
+
+const app = express();
+app.use(express.json());
+
+const facilitator = new Facilitator({
+  solanaPrivateKey: process.env.SOLANA_PRIVATE_KEY!,
+  solanaFeePayer: process.env.SOLANA_PUBLIC_KEY!,
+  networks: ["solana-devnet"],
+  payWallRouteConfig: {
+    "/api/protected": {
+      price: "$0.10",
+      network: "solana-devnet",
+      config: { description: "Premium API access" },
+    },
+  },
+});
+
+createExpressAdapter(facilitator, app, "/facilitator");
+
+app.listen(3000, () => console.log("Facilitator running on :3000"));
+```
+
+**3. Scaffold the dashboard:**
+
+```bash
+bunx create-x402-dashboard my-dashboard
+cd my-dashboard
+bun dev
+```
+
+The CLI will prompt you for your facilitator URL and public key, then set up everything automatically.
+
+---
+
+### Option 2: Development Setup (From Source)
+
+**Prerequisites:**
 
 - [Bun](https://bun.sh/) installed (package manager)
 - A Solana wallet with funds for gas fees
 - Solana private key for payment settlement
 
-### 1. Clone and Install
+**1. Clone and Install**
 
 ```bash
 git clone <repository-url>
@@ -67,7 +120,7 @@ cd x402-Teller
 bun install
 ```
 
-### 2. Set Up Environment Variables
+**2. Set Up Environment Variables**
 
 ```bash
 # Solana example (example-express)
@@ -85,14 +138,14 @@ FACILITATOR_API_URL=http://localhost:3000
 NEXT_PUBLIC_FACILITATOR_PUBLIC_KEY=your_solana_public_key
 ```
 
-### 3. Run the Facilitator
+**3. Run the Facilitator**
 
 ```bash
 cd packages/example-express
 bun run dev
 ```
 
-### 4. Run the Dashboard (Optional)
+**4. Run the Dashboard (Optional)**
 
 ```bash
 cd packages/ui
@@ -101,7 +154,9 @@ bun run dev
 
 The dashboard will be available at `http://localhost:3001`. Sign in with the facilitator wallet to view transactions and analytics.
 
-### 5. Configure Your API
+---
+
+### Configure Your API
 
 Point your `paymentMiddleware` at your facilitator:
 
@@ -129,15 +184,15 @@ Now your API accepts x402 payments through your own facilitator!
 
 The facilitator exposes these endpoints:
 
-| Method | Endpoint                                    | Description                                             |
-| ------ | ------------------------------------------- | ------------------------------------------------------- |
-| `GET`  | `/supported`                                | List supported payment networks and kinds               |
-| `GET`  | `/public-keys`                              | Return facilitator's public keys (for authentication)   |
-| `POST` | `/verify`                                   | Verify a payment authorization is valid                 |
-| `POST` | `/settle`                                   | Execute payment settlement on-chain                     |
-| `GET`  | `/balance?network=solana-devnet`            | Get USDC balance of facilitator wallet                  |
-| `GET`  | `/dashboard/transactions?limit=20&offset=0` | Paginated transaction history with optional filters     |
-| `GET`  | `/dashboard/endpoints?timeframe=24h`        | Endpoint statistics with usage analytics                |
+| Method | Endpoint                                    | Description                                           |
+| ------ | ------------------------------------------- | ----------------------------------------------------- |
+| `GET`  | `/supported`                                | List supported payment networks and kinds             |
+| `GET`  | `/public-keys`                              | Return facilitator's public keys (for authentication) |
+| `POST` | `/verify`                                   | Verify a payment authorization is valid               |
+| `POST` | `/settle`                                   | Execute payment settlement on-chain                   |
+| `GET`  | `/balance?network=solana-devnet`            | Get USDC balance of facilitator wallet                |
+| `GET`  | `/dashboard/transactions?limit=20&offset=0` | Paginated transaction history with optional filters   |
+| `GET`  | `/dashboard/endpoints?timeframe=24h`        | Endpoint statistics with usage analytics              |
 
 ## Core Package API
 
@@ -150,6 +205,13 @@ const facilitator = new Facilitator({
   solanaPrivateKey: process.env.SOLANA_PRIVATE_KEY!,
   solanaFeePayer: process.env.SOLANA_PUBLIC_KEY!,
   networks: ["solana-devnet"], // or "solana"
+  payWallRouteConfig: {
+    "/api/protected": {
+      price: "$0.10",
+      network: "solana-devnet",
+      config: { description: "Premium API access" },
+    },
+  },
 });
 ```
 
@@ -215,10 +277,40 @@ For other frameworks, use the core methods directly and map them to your routes.
 
 ---
 
-## Examples
+## Packages
 
-- **[Express + Solana Example](./packages/example-express/)** - Full Solana devnet implementation
-- **[Dashboard UI](./packages/ui/)** - Next.js dashboard with wallet auth
+- **[@x402-teller/core](./packages/core/)** - Core facilitator package for npm
+- **[create-x402-dashboard](./packages/create-x402-dashboard/)** - CLI tool to scaffold dashboard
+- **[ui](./packages/ui/)** - Dashboard source code
+- **[example-express](./packages/example-express/)** - Full Express + Solana example
+
+---
+
+## Distribution
+
+**For end users:**
+
+1. **Install the facilitator:**
+   ```bash
+   npm install @x402-teller/core
+   ```
+
+2. **Scaffold the dashboard:**
+   ```bash
+   bunx create-x402-dashboard
+   ```
+
+**For package maintainers:**
+
+```bash
+# Publish core package
+cd packages/core
+npm publish --access public
+
+# Publish CLI tool
+cd packages/create-x402-dashboard
+npm publish --access public
+```
 
 ---
 
@@ -237,11 +329,5 @@ For other frameworks, use the core methods directly and map them to your routes.
 ## Contributing
 
 This is an open-source project. Contributions are welcome!
-
-## License
-
-See [LICENSE](./LICENSE) for details.
-
----
 
 **Built with x402** - Self-sovereign payments for the open web.

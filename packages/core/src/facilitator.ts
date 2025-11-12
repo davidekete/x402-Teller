@@ -55,12 +55,7 @@ export interface CreateFacilitatorOptions {
   solanaFeePayer: string; // Solana public address for fee payer
   networks: SolanaNetwork[];
   minConfirmations?: number;
-  enableDashboard?: boolean; // Enable transaction tracking to database
-  dashboardOptions?: {
-    force?: boolean; // If true, drops existing tables and recreates them (DEVELOPMENT ONLY)
-    autoInit?: boolean; // If true, automatically initializes dashboard on Facilitator creation (default: true)
-  };
-  payWallRouteConfig?: RoutesConfig;
+  payWallRouteConfig: RoutesConfig; // Route configuration for paywall endpoints (required for dashboard)
 }
 
 export const DEFAULT_MIN_CONFIRMATIONS = 1;
@@ -92,8 +87,7 @@ export class Facilitator {
   private readonly solanaFeePayer: string;
   private readonly networks: SolanaNetwork[];
   private readonly minConfirmations: number;
-  private readonly enableDashboard: boolean;
-  private readonly payWallRoutes?: RoutesConfig;
+  private readonly payWallRoutes: RoutesConfig;
   private dashboardReady: Promise<void> | null = null;
 
   // Public key derived from private key
@@ -113,31 +107,22 @@ export class Facilitator {
     if (!options.networks || options.networks.length === 0) {
       throw new Error("Facilitator: at least one network is required");
     }
+    if (!options.payWallRouteConfig) {
+      throw new Error("Facilitator: payWallRouteConfig is required");
+    }
 
     this.solanaPrivateKey = options.solanaPrivateKey;
     this.solanaFeePayer = options.solanaFeePayer;
     this.networks = options.networks;
     this.minConfirmations =
       options.minConfirmations ?? DEFAULT_MIN_CONFIRMATIONS;
-    this.enableDashboard = options.enableDashboard ?? false;
     this.payWallRoutes = options.payWallRouteConfig;
-
-    // Validate that if dashboard is enabled, paywall routes must be provided
-    if (this.enableDashboard && !this.payWallRoutes) {
-      throw new Error(
-        "Facilitator: payWallRouteConfig is required when enableDashboard is true. "
-      );
-    }
 
     // Derive and store public key from private key
     this.solanaPublicKey = this.deriveSolanaPublicKey(this.solanaPrivateKey);
 
-    // Auto-initialize dashboard if enabled and autoInit is true (default)
-    const autoInit = options.dashboardOptions?.autoInit ?? true;
-    if (this.enableDashboard && autoInit) {
-      const force = options.dashboardOptions?.force ?? false;
-      this.dashboardReady = this.initDashboard(force);
-    }
+    // Auto-initialize dashboard (creates database tables if they don't exist)
+    this.dashboardReady = this.initDashboard(false);
   }
 
   /**
@@ -336,8 +321,8 @@ export class Facilitator {
       throw Error("Invalid payment");
     }
 
-    // Track verification in dashboard if enabled
-    if (this.enableDashboard && resp.payer) {
+    // Track verification in dashboard
+    if (resp.payer) {
       console.log(paymentPayload);
       try {
         // Ensure dashboard is ready before tracking
@@ -420,8 +405,8 @@ export class Facilitator {
       undefined
     );
 
-    // Track settlement in dashboard if enabled
-    if (this.enableDashboard) {
+    // Track settlement in dashboard
+    {
       try {
         // Ensure dashboard is ready before tracking
         await this.ensureDashboardReady();
