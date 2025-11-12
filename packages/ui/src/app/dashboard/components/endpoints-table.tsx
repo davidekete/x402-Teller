@@ -6,48 +6,6 @@ import { Card } from "@/components/ui/card";
 import { fetchEndpointStats, type EndpointStat } from "../../../lib/api";
 import { Activity, AlertCircle } from "lucide-react";
 
-const defaultEndpoints: EndpointStat = {
-  endpoints: [
-    {
-      endpointPath: "/api/generate",
-      numberOfCalls: 12450,
-      successfulCalls: 12300,
-      failedCalls: 150,
-      totalRevenue: 622.5,
-      averageAmount: 0.05,
-      lastAccessed: new Date("2025-11-10T08:30:00.000Z"),
-      price: "0.05 / call",
-      network: "mainnet",
-      description: "Generates content from prompts",
-    },
-    {
-      endpointPath: "/api/verify",
-      numberOfCalls: 25120,
-      successfulCalls: 24900,
-      failedCalls: 220,
-      totalRevenue: 251.2,
-      averageAmount: 0.01,
-      lastAccessed: new Date("2025-11-10T09:15:00.000Z"),
-      price: "0.01 / unit",
-      network: "mainnet",
-      description: "Verifies input and returns validation results",
-    },
-    {
-      endpointPath: "/api/ingest",
-      numberOfCalls: 450,
-      successfulCalls: 445,
-      failedCalls: 5,
-      totalRevenue: 45.0,
-      averageAmount: 0.1,
-      lastAccessed: null,
-      price: "0.10 / record",
-      network: "ingest-net",
-      description: "Ingests data records for processing",
-    },
-  ],
-  totalCount: 3,
-};
-
 export function EndpointsTable() {
   const [timeframe] = useState("24h");
 
@@ -55,17 +13,13 @@ export function EndpointsTable() {
     `endpoints-${timeframe}`,
     () => fetchEndpointStats(timeframe),
     {
-      refreshInterval: 30000, // Refresh every 30 seconds
+      // refreshInterval: 30000, // Refresh every 30 seconds
       revalidateOnFocus: true,
       onError: (err) => {
         console.error("[v0] Failed to fetch endpoint stats:", err);
       },
     }
   );
-
-  const endpoints = data || defaultEndpoints;
-  const activeCount = endpoints.totalCount;
-  const hasEndpoints = endpoints.endpoints && endpoints.endpoints.length > 0;
 
   if (error) {
     return (
@@ -106,6 +60,10 @@ export function EndpointsTable() {
       </div>
     );
   }
+
+  const endpoints = data as EndpointStat;
+  const activeCount = endpoints.totalCount;
+  const hasEndpoints = endpoints.endpoints && endpoints.endpoints.length > 0;
 
   return (
     <div className="basis-2/5">
