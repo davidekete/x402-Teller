@@ -14,8 +14,6 @@ import { fetchTransactions, fetchBalance } from "@/lib/api";
 import { LogOut, TrendingDown, TrendingUp, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-const defaultPayments: Transaction[] = [];
-
 /**
  * Calculate total revenue from all settled transactions.
  */
@@ -165,13 +163,13 @@ export default function DashboardPage() {
     error: transactionsError,
     isLoading: transactionsLoading,
   } = useSWR("transactions", () => fetchTransactions(20, 0), {
-    refreshInterval: 30000, // Refresh every 30 seconds
+    // refreshInterval: 30000, // Refresh every 30 seconds
     revalidateOnFocus: true,
   });
-  const transactions = data?.length ? data : defaultPayments;
+  const transactions = data ? data : [];
 
-  const totalRevenue = calculateTotalRevenue(defaultPayments);
-  const revenueChange = calculateRevenueChange(defaultPayments);
+  const totalRevenue = calculateTotalRevenue(transactions);
+  const revenueChange = calculateRevenueChange(transactions);
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white container mx-auto">
