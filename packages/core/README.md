@@ -19,8 +19,9 @@ This package lets API sellers run their own x402 facilitator instead of relying 
 - `GET /public-keys` - Returns facilitator's public keys
 - `POST /verify` - Verifies buyer's signed payment intent
 - `POST /settle` - Settles payment on-chain
-- `GET /dashboard` - Returns transaction statistics
+- `GET /balance` - Returns USDC balance of facilitator wallet
 - `GET /dashboard/transactions` - Returns paginated transaction history
+- `GET /dashboard/endpoints` - Returns endpoint usage statistics
 
 No external facilitator. No third-party dependencies. Your own infrastructure.
 
@@ -166,8 +167,6 @@ Returns the list of supported payment networks and kinds.
 
 ---
 
----
-
 #### `verifyPayment(paymentPayload, paymentRequirements)`
 
 Verifies that a buyer's signed payment intent is valid without executing the settlement.
@@ -196,36 +195,29 @@ Executes the payment settlement on-chain using your private key.
 
 ---
 
-#### `getDashboardStats()`
+#### `getBalance(network)`
 
-Returns aggregated statistics about all transactions.
+Returns the USDC balance of the facilitator wallet on the specified network.
 
-**Returns:**
-```ts
-Promise<{
-  totalTransactions: number;
-  successfulTransactions: number;
-  failedTransactions: number;
-  totalVolume: string;
-  successRate: number;
-}>
-```
+**Parameters:**
+- `network` - The network to check balance on (e.g., "solana-devnet", "solana")
 
-**Used for:** `GET /dashboard`
+**Returns:** `Promise<{ balance: string; network: string }>`
+
+**Used for:** `GET /balance?network=solana-devnet`
 
 ---
 
-#### `getTransactions(limit?, offset?)`
+#### `getPaywallEndpoints(timeframe?)`
 
-Returns paginated transaction history.
+Returns statistics and analytics for all configured paywall endpoints.
 
 **Parameters:**
-- `limit` (optional) - Number of transactions to return (default: 20)
-- `offset` (optional) - Number of transactions to skip (default: 0)
+- `timeframe` (optional) - Time period for filtering (e.g., "24h", "7d", "30d", "all")
 
-**Returns:** `Promise<Transaction[]>`
+**Returns:** `Promise<{ endpoints: Array<EndpointStats> }>`
 
-**Used for:** `GET /dashboard/transactions`
+**Used for:** `GET /dashboard/endpoints?timeframe=24h`
 
 ---
 
@@ -240,30 +232,26 @@ The facilitator automatically tracks all payment transactions in a database usin
 - Status (pending, verified, settled, failed)
 - Error messages (if any)
 
-**Database Support:**
-- SQLite (default, for development)
-- PostgreSQL (recommended for production)
+**Database Configuration:**
 
-Configure the database connection via environment variables or pass a Sequelize instance to the Facilitator constructor.
+By default, the facilitator uses SQLite and stores data in `./x402-teller.db`. You can customize this via environment variables:
+
+```bash
+# Use a custom SQLite file location
+DB_STORAGE=/path/to/database.db
+
+# Use in-memory database (for testing)
+DB_STORAGE=:memory:
+
+# Enable SQL query logging
+DB_LOGGING=true
+```
 
 ---
 
 ## Framework Adapters
 
-Built-in adapters automatically mount all facilitator endpoints:
-
-
-```ts
-
-```
-
-**Mounted endpoints:**
-- `GET /facilitator/supported`
-- `GET /facilitator/public-keys`
-- `POST /facilitator/verify`
-- `POST /facilitator/settle`
-- `GET /facilitator/dashboard`
-- `GET /facilitator/dashboard/transactions`
+Built-in adapters automatically mount all facilitator endpoints.
 
 ### Express Adapter
 
@@ -273,6 +261,14 @@ import { createExpressAdapter } from "@x402-teller/core";
 createExpressAdapter(facilitator, app, "/facilitator");
 ```
 
+**Mounted endpoints:**
+- `GET /facilitator/supported` - List supported payment networks
+- `GET /facilitator/public-keys` - Get facilitator public keys
+- `POST /facilitator/verify` - Verify payment authorization
+- `POST /facilitator/settle` - Settle payment on-chain
+- `GET /facilitator/balance` - Get USDC balance
+- `GET /facilitator/dashboard/transactions` - Get transaction history
+- `GET /facilitator/dashboard/endpoints` - Get endpoint statistics
 
 ### Custom Framework
 
@@ -307,13 +303,13 @@ For other frameworks, use the Facilitator methods directly and map them to your 
 
 Full working examples are available in the monorepo:
 
-- **[Express + Solana](../example-express/)** - Complete Solana devnet implementation with dashboard
+- **[Express + Solana](../example-express/)** - Complete Solana devnet implementation
 
-Both examples include:
+The example includes:
 - Environment configuration
-- Facilitator setup
+- Facilitator setup with paywall routes
 - Protected routes with x402 payment requirements
-- Transaction tracking
+- Automatic transaction tracking
 
 ---
 
@@ -321,9 +317,11 @@ Both examples include:
 
 - ✅ Solana support (mainnet and devnet)
 - ✅ Payment verification and settlement
-- ✅ Transaction tracking and database models
-- ✅ Dashboard analytics endpoints
-- ✅ Public key endpoints for authentication
+- ✅ Automatic transaction tracking with SQLite
+- ✅ Balance checking for facilitator wallet
+- ✅ Endpoint usage analytics
+- ✅ Public key endpoints for wallet authentication
+- ✅ Express adapter for easy integration
 - ✅ TypeScript support with full type definitions
 
 ## What's Not Included
@@ -332,7 +330,7 @@ Both examples include:
 - ❌ Subscription or recurring payment logic
 - ❌ Refund functionality
 - ❌ Multi-signature wallet support
-- ❌ Frontend UI (see [@x402-teller/ui](../ui/) for dashboard UI)
+- ❌ Frontend dashboard UI (use `create-x402-dashboard` CLI to scaffold the UI)
 
 ---
 
