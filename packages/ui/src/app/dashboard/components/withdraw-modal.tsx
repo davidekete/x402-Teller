@@ -42,9 +42,9 @@ export function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
     if (isOpen && connection) {
       const endpoint = connection.rpcEndpoint;
       // Check if endpoint contains 'mainnet' or 'devnet'
-      if (endpoint.includes('mainnet')) {
+      if (endpoint.includes("mainnet")) {
         setNetwork("solana");
-      } else if (endpoint.includes('devnet') || endpoint.includes('testnet')) {
+      } else if (endpoint.includes("devnet") || endpoint.includes("testnet")) {
         setNetwork("solana-devnet");
       }
       // Default to devnet if cannot detect
@@ -98,12 +98,16 @@ export function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
 
     // Check wallet connection
     if (!publicKey) {
-      setError("Wallet not connected. Please refresh and ensure your wallet is connected.");
+      setError(
+        "Wallet not connected. Please refresh and ensure your wallet is connected."
+      );
       return;
     }
 
     if (!signTransaction) {
-      setError("Your wallet doesn't support signing. Please use a compatible wallet like Phantom or Solflare.");
+      setError(
+        "Your wallet doesn't support signing. Please use a compatible wallet like Phantom or Solflare."
+      );
       return;
     }
 
@@ -217,9 +221,7 @@ export function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
         "confirmed"
       );
 
-      setSuccess(
-        `Successfully withdrew ${amount} USDC!`
-      );
+      setSuccess(`Successfully withdrew ${amount} USDC!`);
       setAddress("");
       setAmount("");
       await loadBalance(); // Refresh balance
@@ -349,28 +351,6 @@ export function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
             ? "Wallet Not Connected"
             : "Sign & Withdraw"}
         </Button>
-
-        {/* Offramp Section */}
-        <div className="text-center">
-          <p className="text-sm text-zinc-400 mb-4">
-            Withdrawals to offramp coming soon!
-          </p>
-          <Button
-            disabled
-            className="w-full bg-teal-700/30 hover:bg-teal-700/30 text-teal-600/50 rounded-2xl py-6 text-lg font-semibold h-auto cursor-not-allowed flex items-center justify-center gap-3"
-          >
-            <svg
-              viewBox="0 0 120 40"
-              className="w-32 h-10 opacity-50"
-              fill="currentColor"
-            >
-              <path d="M20 10 L35 25 L20 30 Z" />
-              <text x="45" y="28" className="font-semibold text-xl">
-                offramp
-              </text>
-            </svg>
-          </Button>
-        </div>
       </div>
     </div>
   );

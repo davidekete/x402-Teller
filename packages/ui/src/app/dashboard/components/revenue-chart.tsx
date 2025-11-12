@@ -7,6 +7,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { TrendingUp, AlertCircle } from "lucide-react";
 
 const chartConfig = {
   revenue: {
@@ -31,6 +32,8 @@ export interface Transaction {
 
 interface RevenueChartProps {
   transactions: Transaction[];
+  isLoading?: boolean;
+  error?: Error | null;
 }
 
 function computeChartDataFromTransactions(transactions: Transaction[]) {
@@ -80,12 +83,65 @@ function computeChartDataFromTransactions(transactions: Transaction[]) {
   return monthNames.map((m, i) => ({ month: m, revenue: Math.round(sums[i]) }));
 }
 
-export function RevenueChart({ transactions }: RevenueChartProps) {
-  const computedChartData =
-    transactions && transactions.length > 0
-      ? computeChartDataFromTransactions(transactions)
-      : undefined;
-  const data = computedChartData;
+export function RevenueChart({
+  transactions,
+  isLoading,
+  error,
+}: RevenueChartProps) {
+  if (error) {
+    return (
+      <Card className="bg-[#0f0f0f] border-zinc-800/50 p-4 md:p-6">
+        <div className="flex flex-col items-center justify-center h-[300px] md:h-[400px] text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+          <h3 className="text-lg font-semibold text-zinc-200 mb-2">
+            Failed to Load Revenue Data
+          </h3>
+          <p className="text-sm text-zinc-400 max-w-md">
+            {error.message ||
+              "An error occurred while loading revenue data. Please try again later."}
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <Card className="bg-[#0f0f0f] border-zinc-800/50 p-4 md:p-6">
+        <div className="flex items-center justify-center h-[300px] md:h-[400px]">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm text-zinc-400">Loading revenue data...</p>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  const hasTransactions = transactions && transactions.length > 0;
+  const computedChartData = hasTransactions
+    ? computeChartDataFromTransactions(transactions)
+    : [];
+
+  const hasSettledTransactions = computedChartData.some((d) => d.revenue > 0);
+
+  if (!hasTransactions || !hasSettledTransactions) {
+    return (
+      <Card className="bg-[#0f0f0f] border-zinc-800/50 p-4 md:p-6">
+        <div className="flex flex-col items-center justify-center h-[300px] md:h-[400px] text-center">
+          <TrendingUp className="w-12 h-12 text-zinc-600 mb-4" />
+          <h3 className="text-lg font-semibold text-zinc-200 mb-2">
+            No Revenue Data Yet
+          </h3>
+          <p className="text-sm text-zinc-400 max-w-md">
+            {!hasTransactions
+              ? "Start accepting payments to see your revenue trends here."
+              : "Settled transactions will appear here once payments are processed."}
+          </p>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card className="bg-[#0f0f0f] border-zinc-800/50 p-4 md:p-6">
@@ -94,7 +150,7 @@ export function RevenueChart({ transactions }: RevenueChartProps) {
         className="h-[300px] md:h-[400px] w-full"
       >
         <AreaChart
-          data={data}
+          data={computedChartData}
           margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
         >
           <defs>

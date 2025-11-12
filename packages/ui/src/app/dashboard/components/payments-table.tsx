@@ -10,11 +10,13 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Receipt,
+  AlertCircle,
 } from "lucide-react";
-import { type Transaction } from "../../../lib/api";
+import type { Transaction } from "../../../lib/api";
 import { formatDateRange } from "little-date";
 import { ChevronDownIcon } from "lucide-react";
-import { type DateRange } from "react-day-picker";
+import type { DateRange } from "react-day-picker";
 
 import { Calendar } from "@/components/ui/calendar";
 import { useId } from "react";
@@ -50,18 +52,65 @@ const statusConfig = {
     label: "Failed",
     className: "text-red-500 bg-red-500/10",
   },
+  verified: {
+    icon: CheckCircle2,
+    label: "Verified",
+    className: "text-blue-500 bg-blue-500/10",
+  },
 };
 
 export function PaymentsTable({
   transactions,
+  isLoading,
+  error,
 }: {
   transactions: Transaction[];
+  isLoading?: boolean;
+  error?: Error | null;
 }) {
   const id = useId();
   const [currentPage, setCurrentPage] = useState(0);
   const [selectedStatus, setSelectedStatus] = useState<string | null>("all");
 
   const [range, setRange] = useState<DateRange | undefined>(undefined);
+
+  if (error) {
+    return (
+      <div className="basis-3/5">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
+          <h3 className="text-2xl font-bold">Payments</h3>
+        </div>
+        <Card className="bg-[#0f0f0f] border-zinc-800/50 p-8">
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+            <h3 className="text-lg font-semibold text-zinc-200 mb-2">
+              Failed to Load Payments
+            </h3>
+            <p className="text-sm text-zinc-400 max-w-md">
+              {error.message ||
+                "An error occurred while loading payment data. Please try again later."}
+            </p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="basis-3/5">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
+          <h3 className="text-2xl font-bold">Payments</h3>
+        </div>
+        <Card className="bg-[#0f0f0f] border-zinc-800/50 p-8">
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4" />
+            <p className="text-sm text-zinc-400">Loading payments...</p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   // Filter transactions by selected status and date range
   const filteredTransactions = transactions.filter((tx) => {
@@ -103,6 +152,10 @@ export function PaymentsTable({
     setSelectedStatus(status);
     setCurrentPage(0); // Reset to first page when filter changes
   };
+
+  const hasNoTransactions = !transactions || transactions.length === 0;
+  const hasNoFilteredResults =
+    filteredTransactions.length === 0 && !hasNoTransactions;
 
   return (
     <div className="basis-3/5">
@@ -158,7 +211,7 @@ export function PaymentsTable({
                   <Button
                     variant="outline"
                     id="dates"
-                    className="w-full justify-between font-normal"
+                    className="w-full justify-between font-normal bg-transparent"
                   >
                     Pick a date
                     <ChevronDownIcon className="w-4 h-4" />
@@ -194,154 +247,190 @@ export function PaymentsTable({
       </div>
 
       <Card className="bg-[#0f0f0f] border-zinc-800/50 overflow-hidden">
-        {/* Desktop Table */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-zinc-800/50">
-                <th className="text-left text-sm font-medium text-zinc-400 px-6 py-4">
-                  Wallet
-                </th>
-                <th className="text-left text-sm font-medium text-zinc-400 px-6 py-4">
-                  Tx Hash
-                </th>
-                <th className="text-left text-sm font-medium text-zinc-400 px-6 py-4">
+        {hasNoTransactions ? (
+          <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+            <Receipt className="w-12 h-12 text-zinc-600 mb-4" />
+            <h3 className="text-lg font-semibold text-zinc-200 mb-2">
+              No Payments Yet
+            </h3>
+            <p className="text-sm text-zinc-400 max-w-md">
+              Payment transactions will appear here once you start receiving
+              payments through your endpoints.
+            </p>
+          </div>
+        ) : hasNoFilteredResults ? (
+          <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+            <Receipt className="w-12 h-12 text-zinc-600 mb-4" />
+            <h3 className="text-lg font-semibold text-zinc-200 mb-2">
+              No Payments Found
+            </h3>
+            <p className="text-sm text-zinc-400 max-w-md">
+              No payments match your current filters. Try adjusting your status
+              or date range filters.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-zinc-800/50">
+                    <th className="text-left text-sm font-medium text-zinc-400 px-6 py-4">
+                      Wallet
+                    </th>
+                    <th className="text-left text-sm font-medium text-zinc-400 px-6 py-4">
+                      Tx Hash
+                    </th>
+                    <th className="text-left text-sm font-medium text-zinc-400 px-6 py-4">
+                      Amount (USDC)
+                    </th>
+                    <th className="text-left text-sm font-medium text-zinc-400 px-6 py-4">
+                      Status
+                    </th>
+                    <th className="text-left text-sm font-medium text-zinc-400 px-6 py-4">
+                      Timestamp
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedPayments.map((payment, index) => {
+                    const statusInfo =
+                      statusConfig[payment.status as keyof typeof statusConfig];
+                    const StatusIcon = statusInfo.icon;
+
+                    return (
+                      <tr
+                        key={index}
+                        className="border-b border-zinc-800/30 last:border-0"
+                      >
+                        <td className="px-6 py-4 text-sm font-mono text-zinc-400">
+                          {payment.client}
+                        </td>
+                        <td className="px-6 py-4 text-sm font-mono text-zinc-400">
+                          <a
+                            href={`https://solscan.io/tx/${payment.txHash}?cluster=devnet`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {payment.txHash.slice(0, 6) +
+                              "..." +
+                              payment.txHash.slice(-4)}
+                          </a>
+                        </td>
+                        <td
+                          className={`px-6 py-4 text-sm font-medium ${
+                            payment.status === "settled"
+                              ? "text-emerald-500"
+                              : payment.status === "failed"
+                              ? "text-red-500"
+                              : "text-white"
+                          }`}
+                        >
+                          {payment.status === "settled" ? "+ " : ""}$
+                          {Number(payment.amount).toFixed(2)}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div
+                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${statusInfo.className}`}
+                          >
+                            <StatusIcon className="w-3 h-3" />
+                            {statusInfo.label}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-zinc-400">
+                          {payment.time.split("T")[0]}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Table */}
+            <div className="md:hidden">
+              <div className="flex border-b border-zinc-800/50 bg-zinc-900/30">
+                <div className="flex-1 text-xs font-medium text-zinc-400 px-4 py-3">
                   Amount (USDC)
-                </th>
-                <th className="text-left text-sm font-medium text-zinc-400 px-6 py-4">
+                </div>
+                <div className="flex-1 text-xs font-medium text-zinc-400 px-4 py-3">
                   Status
-                </th>
-                <th className="text-left text-sm font-medium text-zinc-400 px-6 py-4">
-                  Timestamp
-                </th>
-              </tr>
-            </thead>
-            <tbody>
+                </div>
+                <div className="flex-1 text-xs font-medium text-zinc-400 px-4 py-3">
+                  Time
+                </div>
+              </div>
               {paginatedPayments.map((payment, index) => {
                 const statusInfo =
                   statusConfig[payment.status as keyof typeof statusConfig];
                 const StatusIcon = statusInfo.icon;
 
                 return (
-                  <tr
+                  <div
                     key={index}
-                    className="border-b border-zinc-800/30 last:border-0"
+                    className="flex border-b border-zinc-800/30 last:border-0"
                   >
-                    <td className="px-6 py-4 text-sm font-mono text-zinc-400">
-                      {payment.client}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-mono text-zinc-400">
-                      {payment.txID}
-                    </td>
-                    <td
-                      className={`px-6 py-4 text-sm font-medium ${
-                        payment.status === "settled"
-                          ? "text-emerald-500"
-                          : payment.status === "failed"
-                          ? "text-red-500"
-                          : "text-white"
-                      }`}
-                    >
-                      {payment.status === "settled" ? "+ " : ""}$
-                      {Number(payment.amount).toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4">
+                    <div className="flex-1 px-4 py-4 flex items-center">
+                      <div
+                        className={`text-sm font-medium ${
+                          payment.status === "settled"
+                            ? "text-emerald-500"
+                            : payment.status === "failed"
+                            ? "text-red-500"
+                            : "text-white"
+                        }`}
+                      >
+                        {payment.status === "settled" ? "+ " : ""}$
+                        {Number(payment.amount).toFixed(2)}
+                      </div>
+                    </div>
+                    <div className="flex-1 px-4 py-4 flex items-center">
                       <div
                         className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${statusInfo.className}`}
                       >
                         <StatusIcon className="w-3 h-3" />
                         {statusInfo.label}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-zinc-400">
-                      {payment.time.split("T")[0]}
-                    </td>
-                  </tr>
+                    </div>
+                    <div className="flex-1 px-4 py-4 flex items-center">
+                      <div className="text-xs text-zinc-400">
+                        {payment.time.split("T")[0]}
+                      </div>
+                    </div>
+                  </div>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
+            </div>
 
-        {/* Mobile Table */}
-        <div className="md:hidden">
-          <div className="flex border-b border-zinc-800/50 bg-zinc-900/30">
-            <div className="flex-1 text-xs font-medium text-zinc-400 px-4 py-3">
-              Amount (USDC)
-            </div>
-            <div className="flex-1 text-xs font-medium text-zinc-400 px-4 py-3">
-              Status
-            </div>
-            <div className="flex-1 text-xs font-medium text-zinc-400 px-4 py-3">
-              Time
-            </div>
-          </div>
-          {paginatedPayments.map((payment, index) => {
-            const statusInfo =
-              statusConfig[payment.status as keyof typeof statusConfig];
-            const StatusIcon = statusInfo.icon;
-
-            return (
-              <div
-                key={index}
-                className="flex border-b border-zinc-800/30 last:border-0"
-              >
-                <div
-                  className={`text-sm font-medium ${
-                    payment.status === "settled"
-                      ? "text-emerald-500"
-                      : payment.status === "failed"
-                      ? "text-red-500"
-                      : "text-white"
-                  }`}
-                >
-                  {payment.status === "settled" ? "+ " : ""}$
-                  {Number(payment.amount).toFixed(2)}
-                </div>
-                <div className="flex-1 px-4 py-4 flex items-center">
-                  <div
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${statusInfo.className}`}
-                  >
-                    <StatusIcon className="w-3 h-3" />
-                    {statusInfo.label}
-                  </div>
-                </div>
-                <div className="flex-1 px-4 py-4 flex items-center">
-                  <div className="text-xs text-zinc-400">
-                    {payment.time.split("T")[0]}
-                  </div>
-                </div>
+            {/* Pagination Controls */}
+            <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-800/50 bg-zinc-900/20">
+              <div className="text-sm text-zinc-400">
+                Page {currentPage + 1} of {totalPages || 1} (
+                {filteredTransactions.length}{" "}
+                {selectedStatus !== "all" ? `${selectedStatus}` : "total"})
               </div>
-            );
-          })}
-        </div>
-
-        {/* Pagination Controls */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-800/50 bg-zinc-900/20">
-          <div className="text-sm text-zinc-400">
-            Page {currentPage + 1} of {totalPages || 1} (
-            {filteredTransactions.length}{" "}
-            {selectedStatus ? `${selectedStatus}` : "total"})
-          </div>
-          <div className="flex gap-2">
-            <Button
-              onClick={handlePrevious}
-              disabled={currentPage === 0}
-              className="bg-zinc-800/50 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed gap-2 text-zinc-200"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              Previous
-            </Button>
-            <Button
-              onClick={handleNext}
-              disabled={currentPage >= totalPages - 1}
-              className="bg-zinc-800/50 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed gap-2 text-zinc-200"
-            >
-              Next
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={handlePrevious}
+                  disabled={currentPage === 0}
+                  className="bg-zinc-800/50 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed gap-2 text-zinc-200"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Previous
+                </Button>
+                <Button
+                  onClick={handleNext}
+                  disabled={currentPage >= totalPages - 1}
+                  className="bg-zinc-800/50 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed gap-2 text-zinc-200"
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
       </Card>
     </div>
   );

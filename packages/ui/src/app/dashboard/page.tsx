@@ -160,14 +160,14 @@ export default function DashboardPage() {
     reconnectWallet();
   }, [session, connected, wallet, wallets, connect, select]);
 
-  const { data, error: transactionsError } = useSWR(
-    "transactions",
-    () => fetchTransactions(20, 0),
-    {
-      refreshInterval: 30000, // Refresh every 30 seconds
-      revalidateOnFocus: true,
-    }
-  );
+  const {
+    data,
+    error: transactionsError,
+    isLoading: transactionsLoading,
+  } = useSWR("transactions", () => fetchTransactions(20, 0), {
+    refreshInterval: 30000, // Refresh every 30 seconds
+    revalidateOnFocus: true,
+  });
   const transactions = data?.length ? data : defaultPayments;
 
   const totalRevenue = calculateTotalRevenue(defaultPayments);
@@ -280,19 +280,31 @@ export default function DashboardPage() {
           </div>
 
           {/* Chart */}
-          <RevenueChart transactions={defaultPayments} />
+          <RevenueChart
+            transactions={transactions}
+            isLoading={transactionsLoading}
+            error={transactionsError}
+          />
         </div>
 
         {/* Desktop Layout: Payments and Endpoints side by side */}
         <div className="hidden md:flex gap-8 mb-8">
-          <PaymentsTable transactions={transactions || defaultPayments} />
+          <PaymentsTable
+            transactions={transactions}
+            isLoading={transactionsLoading}
+            error={transactionsError}
+          />
           <EndpointsTable />
         </div>
 
         {/* Mobile Layout: Stacked */}
         <div className="md:hidden space-y-8">
           <EndpointsTable />
-          <PaymentsTable transactions={transactions || defaultPayments} />
+          <PaymentsTable
+            transactions={transactions}
+            isLoading={transactionsLoading}
+            error={transactionsError}
+          />
         </div>
       </main>
 
