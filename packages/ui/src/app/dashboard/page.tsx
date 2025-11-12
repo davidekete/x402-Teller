@@ -1572,7 +1572,8 @@ export default function DashboardPage() {
     }
   }, [session]);
 
-  const { publicKey, disconnect, connect, connected, wallet, select, wallets } = useWallet();
+  const { publicKey, disconnect, connect, connected, wallet, select, wallets } =
+    useWallet();
 
   // Detect wallet changes and log out if wallet address changes
   useEffect(() => {
@@ -1619,14 +1620,14 @@ export default function DashboardPage() {
     reconnectWallet();
   }, [session, connected, wallet, wallets, connect, select]);
 
-  const { data, error: transactionsError } = useSWR(
-    "transactions",
-    () => fetchTransactions(20, 0),
-    {
-      refreshInterval: 30000, // Refresh every 30 seconds
-      revalidateOnFocus: true,
-    }
-  );
+  const {
+    data,
+    error: transactionsError,
+    isLoading: transactionsLoading,
+  } = useSWR("transactions", () => fetchTransactions(20, 0), {
+    refreshInterval: 30000, // Refresh every 30 seconds
+    revalidateOnFocus: true,
+  });
   const transactions = data?.length ? data : defaultPayments;
 
   const totalRevenue = calculateTotalRevenue(defaultPayments);
@@ -1703,8 +1704,12 @@ export default function DashboardPage() {
             <div className="flex flex-col items-end gap-3">
               {/* Balance Display */}
               <div className="bg-zinc-900/50 rounded-2xl px-4 py-2 border border-zinc-800/50">
-                <div className="text-xs text-zinc-400 mb-1">Available Balance</div>
-                <div className="text-2xl font-bold">${usdcBalance.toFixed(2)} USDC</div>
+                <div className="text-xs text-zinc-400 mb-1">
+                  Available Balance
+                </div>
+                <div className="text-2xl font-bold">
+                  ${usdcBalance.toFixed(2)} USDC
+                </div>
               </div>
 
               <Button
@@ -1735,19 +1740,31 @@ export default function DashboardPage() {
           </div>
 
           {/* Chart */}
-          <RevenueChart transactions={defaultPayments} />
+          <RevenueChart
+            transactions={transactions}
+            isLoading={transactionsLoading}
+            error={transactionsError}
+          />
         </div>
 
         {/* Desktop Layout: Payments and Endpoints side by side */}
         <div className="hidden md:flex gap-8 mb-8">
-          <PaymentsTable transactions={transactions || defaultPayments} />
+          <PaymentsTable
+            transactions={transactions}
+            isLoading={transactionsLoading}
+            error={transactionsError}
+          />
           <EndpointsTable />
         </div>
 
         {/* Mobile Layout: Stacked */}
         <div className="md:hidden space-y-8">
           <EndpointsTable />
-          <PaymentsTable transactions={transactions || defaultPayments} />
+          <PaymentsTable
+            transactions={transactions}
+            isLoading={transactionsLoading}
+            error={transactionsError}
+          />
         </div>
       </main>
 
