@@ -22,6 +22,15 @@ if (!solanaPrivateKey) {
   );
   process.exit(1);
 }
+if (!solanaPublicKey) {
+  console.error(
+    "❌ Error: SVM_PUBLIC_KEY environment variable is not set or is empty"
+  );
+  console.error(
+    "Please create a .env file with: SVM_PUBLIC_KEY=your_base58_public_key"
+  );
+  process.exit(1);
+}
 
 const app = express();
 app.use(

@@ -174,3 +174,9 @@ dist
 # Finder (MacOS) folder config
 .DS_Store
 DISTRIBUTION.md
+
+# x402-Teller SQLite database
+*.db
+*.sqlite
+*.sqlite3
+x402-teller.db
