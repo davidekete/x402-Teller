@@ -9,8 +9,8 @@ import type { Facilitator } from "../facilitator";
  * - GET /public-keys - Returns facilitator's public keys
  * - POST /verify - Verifies a payment authorization
  * - POST /settle - Settles a payment on-chain
- * - GET /dashboard - Returns dashboard statistics
  * - GET /dashboard/transactions - Returns transaction history
+ * - GET /dashboard/endpoints - Returns endpoint statistics
  * - GET /balance - Gets USDC balance of facilitator wallet
  *
  * @param facilitator The Facilitator instance to use
@@ -20,14 +20,14 @@ import type { Facilitator } from "../facilitator";
  * @example
  * import express from "express";
  * import { Facilitator, createExpressAdapter } from "@x402-teller/core";
- * import { baseSepolia } from "viem/chains";
  *
  * const app = express();
  * app.use(express.json());
  *
  * const facilitator = new Facilitator({
- *   evmPrivateKey: process.env.EVM_PRIVATE_KEY!,
- *   networks: [baseSepolia],
+ *   solanaPrivateKey: process.env.SOLANA_PRIVATE_KEY!,
+ *   solanaFeePayer: process.env.SOLANA_PUBLIC_KEY!,
+ *   networks: ["solana-devnet"],
  * });
  *
  * // Mount at root
@@ -113,24 +113,6 @@ export function createExpressAdapter(
       });
     }
   });
-
-  router.get(
-    normalizePath("/dashboard"),
-    async (req: Request, res: Response) => {
-      try {
-        const response = await facilitator.handleRequest({
-          method: "GET",
-          path: "/dashboard",
-        });
-        res.status(response.status).json(response.body);
-      } catch (error) {
-        res.status(500).json({
-          error: "Internal server error",
-          message: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
-    }
-  );
 
   router.get(
     normalizePath("/dashboard/transactions"),

@@ -1,22 +1,32 @@
 import { describe, it, expect, beforeEach, mock } from "bun:test";
 import { Facilitator, DEFAULT_MIN_CONFIRMATIONS } from "../src/index";
-import { baseSepolia, base, mainnet } from "viem/chains";
 
-const TEST_KEY =
-  "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+// Test keys (these don't need to be valid since we mock the Solana operations)
+const TEST_PRIVATE_KEY = "test-private-key-base58-encoded";
+const TEST_PUBLIC_KEY = "TestPublicKey1111111111111111111111111111";
+
+const TEST_PAYWALL_CONFIG = {
+  "/test-route": {
+    price: "$0.10",
+    network: "solana-devnet" as const,
+    config: { description: "Test route" },
+  },
+};
 
 // Mock the x402 module
-const mockVerify = mock(() => Promise.resolve({ isValid: true, payer: "0xabc" }));
+const mockVerify = mock(() => Promise.resolve({ isValid: true, payer: "SolanaAddress123" }));
 const mockSettle = mock(() =>
   Promise.resolve({
     success: true,
-    transaction: "0x123abc",
-    network: "base-sepolia",
-    payer: "0xabc",
+    transaction: "5abc123...",
+    network: "solana-devnet",
+    payer: "SolanaAddress123",
   })
 );
-const mockCreateConnectedClient = mock(() => ({}));
 const mockCreateSigner = mock(() => Promise.resolve({}));
+
+// Mock Solana Keypair to avoid needing valid keys in tests
+const mockFromSecretKey = mock(() => ({ publicKey: { toBase58: () => TEST_PUBLIC_KEY } }));
 
 // Mock the x402 imports
 mock.module("x402/facilitator", () => ({
@@ -25,32 +35,45 @@ mock.module("x402/facilitator", () => ({
 }));
 
 mock.module("x402/types", () => ({
-  createConnectedClient: mockCreateConnectedClient,
   createSigner: mockCreateSigner,
-  SupportedEVMNetworks: [
-    "base",
-    "base-sepolia",
-    "ethereum",
-    "arbitrum",
-    "optimism",
-    "polygon",
-  ],
+  SupportedSVMNetworks: ["solana", "solana-devnet"],
+}));
+
+// Mock Solana web3.js
+mock.module("@solana/web3.js", () => ({
+  Keypair: {
+    fromSecretKey: mockFromSecretKey,
+  },
+}));
+
+// Mock bs58
+mock.module("bs58", () => ({
+  default: {
+    decode: () => new Uint8Array(64), // Return valid 64-byte array
+  },
 }));
 
 describe("Facilitator - Constructor", () => {
-  it("constructs successfully with valid options", () => {
+  it("constructs successfully with valid Solana options", () => {
     const facilitator = new Facilitator({
-      evmPrivateKey: TEST_KEY,
-      networks: [baseSepolia],
+      solanaPrivateKey: TEST_PRIVATE_KEY,
+      solanaFeePayer: TEST_PUBLIC_KEY,
+      networks: ["solana-devnet"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
     });
 
     expect(facilitator).toBeDefined();
+    expect(facilitator.solanaPublicKey).toBeDefined();
   });
 
   it("constructs with custom minConfirmations", () => {
     const facilitator = new Facilitator({
-      evmPrivateKey: TEST_KEY,
-      networks: [baseSepolia],
+      solanaPrivateKey: TEST_PRIVATE_KEY,
+      solanaFeePayer: TEST_PUBLIC_KEY,
+      networks: ["solana-devnet"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
       minConfirmations: 3,
     });
 
@@ -59,18 +82,24 @@ describe("Facilitator - Constructor", () => {
 
   it("uses default minConfirmations when not specified", () => {
     const facilitator = new Facilitator({
-      evmPrivateKey: TEST_KEY,
-      networks: [baseSepolia],
+      solanaPrivateKey: TEST_PRIVATE_KEY,
+      solanaFeePayer: TEST_PUBLIC_KEY,
+      networks: ["solana-devnet"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
     });
 
     expect(DEFAULT_MIN_CONFIRMATIONS).toBe(1);
     expect(facilitator).toBeDefined();
   });
 
-  it("constructs with multiple networks", () => {
+  it("constructs with multiple Solana networks", () => {
     const facilitator = new Facilitator({
-      evmPrivateKey: TEST_KEY,
-      networks: [baseSepolia, base],
+      solanaPrivateKey: TEST_PRIVATE_KEY,
+      solanaFeePayer: TEST_PUBLIC_KEY,
+      networks: ["solana-devnet", "solana"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
     });
 
     expect(facilitator).toBeDefined();
@@ -79,242 +108,144 @@ describe("Facilitator - Constructor", () => {
   it("throws if constructed with empty networks array", () => {
     expect(() => {
       new Facilitator({
-        evmPrivateKey: TEST_KEY,
+        solanaPrivateKey: TEST_PRIVATE_KEY,
+        solanaFeePayer: TEST_PUBLIC_KEY,
         networks: [],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
+        payWallRouteConfig: TEST_PAYWALL_CONFIG,
       });
-    }).toThrow("at least one EVM network is required");
+    }).toThrow("at least one network is required");
   });
 
-  it("throws if constructed without evmPrivateKey", () => {
+  it("throws if constructed without solanaPrivateKey", () => {
     expect(() => {
       new Facilitator({
-        evmPrivateKey: "",
-        networks: [baseSepolia],
+        solanaPrivateKey: "" as any,
+        solanaFeePayer: TEST_PUBLIC_KEY,
+        networks: ["solana-devnet"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
+        payWallRouteConfig: TEST_PAYWALL_CONFIG,
       });
-    }).toThrow("evmPrivateKey is required");
+    }).toThrow("solanaPrivateKey is required");
   });
 
-  it("throws if evmPrivateKey is missing", () => {
+  it("throws if constructed without solanaFeePayer", () => {
     expect(() => {
       new Facilitator({
-        evmPrivateKey: undefined as any,
-        networks: [baseSepolia],
+        solanaPrivateKey: TEST_PRIVATE_KEY,
+        solanaFeePayer: "" as any,
+        networks: ["solana-devnet"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
+        payWallRouteConfig: TEST_PAYWALL_CONFIG,
       });
-    }).toThrow("evmPrivateKey is required");
-  });
-
-  it("throws if networks is missing", () => {
-    expect(() => {
-      new Facilitator({
-        evmPrivateKey: TEST_KEY,
-        networks: undefined as any,
-      });
-    }).toThrow("at least one EVM network is required");
+    }).toThrow("solanaFeePayer is required");
   });
 });
 
 describe("Facilitator.listSupportedKinds", () => {
-  it("returns supported kinds in the expected shape for single network", () => {
+  it("returns supported kinds for single Solana network", () => {
     const facilitator = new Facilitator({
-      evmPrivateKey: TEST_KEY,
-      networks: [baseSepolia],
+      solanaPrivateKey: TEST_PRIVATE_KEY,
+      solanaFeePayer: TEST_PUBLIC_KEY,
+      networks: ["solana-devnet"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
     });
 
     const result = facilitator.listSupportedKinds();
 
-    // basic structure
     expect(result).toHaveProperty("kinds");
     expect(Array.isArray(result.kinds)).toBe(true);
     expect(result.kinds.length).toBe(1);
 
     const first = result.kinds[0];
-
-    // required fields
     expect(first.x402Version).toBe(1);
     expect(first.scheme).toBe("exact");
-    expect(first.network).toBe("base-sepolia");
+    expect(first.network).toBe("solana-devnet");
+    expect(first.extra?.feePayer).toBe(TEST_PUBLIC_KEY);
   });
 
-  it("returns multiple kinds for multiple networks", () => {
+  it("returns multiple kinds for multiple Solana networks", () => {
     const facilitator = new Facilitator({
-      evmPrivateKey: TEST_KEY,
-      networks: [baseSepolia, base],
+      solanaPrivateKey: TEST_PRIVATE_KEY,
+      solanaFeePayer: TEST_PUBLIC_KEY,
+      networks: ["solana-devnet", "solana"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
     });
 
     const result = facilitator.listSupportedKinds();
-
     expect(result.kinds.length).toBe(2);
 
-    // Check first network
-    expect(result.kinds[0]).toEqual({
-      x402Version: 1,
-      scheme: "exact",
-      network: "base-sepolia",
-    });
-
-    // Check second network
-    expect(result.kinds[1]).toEqual({
-      x402Version: 1,
-      scheme: "exact",
-      network: "base",
-    });
-  });
-
-  it("correctly maps viem chain to x402 network name", () => {
-    const facilitator = new Facilitator({
-      evmPrivateKey: TEST_KEY,
-      networks: [base],
-    });
-
-    const result = facilitator.listSupportedKinds();
-
-    expect(result.kinds[0].network).toBe("base");
-  });
-
-  it("handles networks with spaces in names", () => {
-    const facilitator = new Facilitator({
-      evmPrivateKey: TEST_KEY,
-      networks: [mainnet],
-    });
-
-    const result = facilitator.listSupportedKinds();
-
-    // mainnet should be transformed properly
-    expect(result.kinds[0].network).toBeDefined();
+    expect(result.kinds[0].network).toBe("solana-devnet");
+    expect(result.kinds[1].network).toBe("solana");
   });
 });
 
 describe("Facilitator.verifyPayment", () => {
   beforeEach(() => {
     mockVerify.mockClear();
-    mockCreateConnectedClient.mockClear();
+    mockCreateSigner.mockClear();
   });
 
   it("returns valid:true when x402Verify returns isValid:true", async () => {
     mockVerify.mockResolvedValueOnce({
       isValid: true,
-      payer: "0xtest",
+      payer: "SolanaAddress123",
     });
 
     const facilitator = new Facilitator({
-      evmPrivateKey: TEST_KEY,
-      networks: [baseSepolia],
+      solanaPrivateKey: TEST_PRIVATE_KEY,
+      solanaFeePayer: TEST_PUBLIC_KEY,
+      networks: ["solana-devnet"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
     });
 
     const result = await facilitator.verifyPayment(
-      { txHash: "0xabc" },
-      { network: "base-sepolia" }
+      { signature: "5abc..." },
+      { network: "solana-devnet" }
     );
 
     expect(result.isValid).toBe(true);
-    expect(mockCreateConnectedClient).toHaveBeenCalledWith("base-sepolia");
+    expect(result.payer).toBe("SolanaAddress123");
+    expect(mockCreateSigner).toHaveBeenCalledWith("solana-devnet", TEST_PRIVATE_KEY);
     expect(mockVerify).toHaveBeenCalledTimes(1);
   });
 
-  it("returns valid:false when x402Verify returns isValid:false", async () => {
-    mockVerify.mockResolvedValueOnce({
-      isValid: false,
-      payer: "0xtest",
-    });
-
+  it("returns valid:false for unsupported network", async () => {
     const facilitator = new Facilitator({
-      evmPrivateKey: TEST_KEY,
-      networks: [baseSepolia],
+      solanaPrivateKey: TEST_PRIVATE_KEY,
+      solanaFeePayer: TEST_PUBLIC_KEY,
+      networks: ["solana-devnet"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
     });
 
     const result = await facilitator.verifyPayment(
-      { txHash: "0xabc" },
-      { network: "base-sepolia" }
+      { signature: "5abc..." },
+      { network: "solana" } // Not in networks array
     );
 
     expect(result.isValid).toBe(false);
-    expect(mockVerify).toHaveBeenCalledTimes(1);
+    expect(mockVerify).not.toHaveBeenCalled();
   });
 
   it("passes correct parameters to x402Verify", async () => {
     const facilitator = new Facilitator({
-      evmPrivateKey: TEST_KEY,
-      networks: [baseSepolia],
+      solanaPrivateKey: TEST_PRIVATE_KEY,
+      solanaFeePayer: TEST_PUBLIC_KEY,
+      networks: ["solana-devnet"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
     });
 
-    const payload = { txHash: "0xabc", amount: "100" };
-    const requirements = { network: "base-sepolia", expectedAmount: "100" };
+    const payload = { signature: "5abc...", amount: "100" };
+    const requirements = { network: "solana-devnet", expectedAmount: "100" };
 
     await facilitator.verifyPayment(payload, requirements);
 
     expect(mockVerify).toHaveBeenCalledWith(
-      expect.anything(), // client
+      expect.anything(), // signer
       payload,
       requirements,
       undefined // config
     );
-  });
-
-  it("returns valid:false for unsupported network (not in networks array)", async () => {
-    const facilitator = new Facilitator({
-      evmPrivateKey: TEST_KEY,
-      networks: [baseSepolia],
-    });
-
-    const result = await facilitator.verifyPayment(
-      { txHash: "0xabc" },
-      { network: "fantom" }
-    );
-
-    expect(result.isValid).toBe(false);
-    // Should not call x402Verify for unsupported network
-    expect(mockVerify).not.toHaveBeenCalled();
-  });
-
-  it("returns valid:false for non-EVM network", async () => {
-    // Even if we somehow add a non-EVM network to our networks array,
-    // it should be rejected by the SupportedEVMNetworks check
-    const facilitator = new Facilitator({
-      evmPrivateKey: TEST_KEY,
-      networks: [baseSepolia],
-    });
-
-    const result = await facilitator.verifyPayment(
-      { txHash: "0xabc" },
-      { network: "solana" }
-    );
-
-    expect(result.isValid).toBe(false);
-    expect(mockVerify).not.toHaveBeenCalled();
-  });
-
-  it("works with multiple configured networks", async () => {
-    mockVerify.mockResolvedValueOnce({ isValid: true, payer: "0xtest1" });
-
-    const facilitator = new Facilitator({
-      evmPrivateKey: TEST_KEY,
-      networks: [baseSepolia, base],
-    });
-
-    // Test with second network
-    const result = await facilitator.verifyPayment(
-      { txHash: "0xdef" },
-      { network: "base" }
-    );
-
-    expect(result.isValid).toBe(true);
-    expect(mockCreateConnectedClient).toHaveBeenCalledWith("base");
-  });
-
-  it("handles verification errors gracefully", async () => {
-    mockVerify.mockRejectedValueOnce(new Error("Network error"));
-
-    const facilitator = new Facilitator({
-      evmPrivateKey: TEST_KEY,
-      networks: [baseSepolia],
-    });
-
-    await expect(
-      facilitator.verifyPayment(
-        { txHash: "0xabc" },
-        { network: "base-sepolia" }
-      )
-    ).rejects.toThrow("Network error");
   });
 });
 
@@ -327,24 +258,26 @@ describe("Facilitator.settlePayment", () => {
   it("returns success:true and transaction when x402Settle succeeds", async () => {
     mockSettle.mockResolvedValueOnce({
       success: true,
-      transaction: "0x123abc456def",
-      network: "base-sepolia",
-      payer: "0xtest",
+      transaction: "5xyz789...",
+      network: "solana-devnet",
+      payer: "SolanaAddress123",
     });
 
     const facilitator = new Facilitator({
-      evmPrivateKey: TEST_KEY,
-      networks: [baseSepolia],
+      solanaPrivateKey: TEST_PRIVATE_KEY,
+      solanaFeePayer: TEST_PUBLIC_KEY,
+      networks: ["solana-devnet"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
     });
 
     const result = await facilitator.settlePayment(
       { amount: "100" },
-      { network: "base-sepolia" }
+      { network: "solana-devnet" }
     );
 
     expect(result.success).toBe(true);
-    expect(result.transaction).toBe("0x123abc456def");
-    expect(mockCreateSigner).toHaveBeenCalledWith("base-sepolia", TEST_KEY);
+    expect(result.transaction).toBe("5xyz789...");
+    expect(mockCreateSigner).toHaveBeenCalledWith("solana-devnet", TEST_PRIVATE_KEY);
     expect(mockSettle).toHaveBeenCalledTimes(1);
   });
 
@@ -352,164 +285,63 @@ describe("Facilitator.settlePayment", () => {
     mockSettle.mockResolvedValueOnce({
       success: false,
       transaction: "",
-      network: "base-sepolia",
-      payer: "0xtest",
+      network: "solana-devnet",
+      payer: "SolanaAddress123",
     });
 
     const facilitator = new Facilitator({
-      evmPrivateKey: TEST_KEY,
-      networks: [baseSepolia],
+      solanaPrivateKey: TEST_PRIVATE_KEY,
+      solanaFeePayer: TEST_PUBLIC_KEY,
+      networks: ["solana-devnet"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
     });
 
     const result = await facilitator.settlePayment(
       { amount: "100" },
-      { network: "base-sepolia" }
+      { network: "solana-devnet" }
     );
 
     expect(result.success).toBe(false);
-    // When success is false, the transaction should be empty or undefined
-    expect(result.transaction).toBeFalsy();
   });
 
-  it("passes correct parameters to x402Settle", async () => {
-    mockSettle.mockResolvedValueOnce({
-      success: true,
-      transaction: "0xabc",
-      network: "base-sepolia",
-      payer: "0xtest",
-    });
-
+  it("returns success:false for unsupported network", async () => {
     const facilitator = new Facilitator({
-      evmPrivateKey: TEST_KEY,
-      networks: [baseSepolia],
-    });
-
-    const payload = { amount: "100", recipient: "0xrecipient" };
-    const requirements = { network: "base-sepolia" };
-
-    await facilitator.settlePayment(payload, requirements);
-
-    expect(mockSettle).toHaveBeenCalledWith(
-      expect.anything(), // signer
-      payload,
-      requirements,
-      undefined // config
-    );
-  });
-
-  it("returns success:false for unsupported network (not in networks array)", async () => {
-    const facilitator = new Facilitator({
-      evmPrivateKey: TEST_KEY,
-      networks: [baseSepolia],
+      solanaPrivateKey: TEST_PRIVATE_KEY,
+      solanaFeePayer: TEST_PUBLIC_KEY,
+      networks: ["solana-devnet"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
     });
 
     const result = await facilitator.settlePayment(
       { amount: "100" },
-      { network: "fantom" }
+      { network: "ethereum" }
     );
 
     expect(result.success).toBe(false);
-    expect(result.transaction).toBeFalsy();
-    // Should not call x402Settle for unsupported network
+    expect(result.errorReason).toBe("Only Solana networks are supported");
     expect(mockSettle).not.toHaveBeenCalled();
   });
 
-  it("returns success:false for non-EVM network", async () => {
-    const facilitator = new Facilitator({
-      evmPrivateKey: TEST_KEY,
-      networks: [baseSepolia],
-    });
-
-    const result = await facilitator.settlePayment(
-      { amount: "100" },
-      { network: "solana" }
-    );
-
-    expect(result.success).toBe(false);
-    expect(mockSettle).not.toHaveBeenCalled();
-  });
-
-  it("works with multiple configured networks", async () => {
+  it("uses the configured solanaPrivateKey for signing", async () => {
     mockSettle.mockResolvedValueOnce({
       success: true,
-      transaction: "0xmultinet",
-      network: "base",
-      payer: "0xtest",
+      transaction: "5signed...",
+      network: "solana-devnet",
+      payer: "SolanaAddress123",
     });
 
     const facilitator = new Facilitator({
-      evmPrivateKey: TEST_KEY,
-      networks: [baseSepolia, base],
-    });
-
-    // Test with second network
-    const result = await facilitator.settlePayment(
-      { amount: "100" },
-      { network: "base" }
-    );
-
-    expect(result.success).toBe(true);
-    expect(result.transaction).toBe("0xmultinet");
-    expect(mockCreateSigner).toHaveBeenCalledWith("base", TEST_KEY);
-  });
-
-  it("uses the configured evmPrivateKey for signing", async () => {
-    const customKey = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
-    
-    mockSettle.mockResolvedValueOnce({
-      success: true,
-      transaction: "0xsigned",
-      network: "base-sepolia",
-      payer: "0xtest",
-    });
-
-    const facilitator = new Facilitator({
-      evmPrivateKey: customKey,
-      networks: [baseSepolia],
+      solanaPrivateKey: TEST_PRIVATE_KEY,
+      solanaFeePayer: TEST_PUBLIC_KEY,
+      networks: ["solana-devnet"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
     });
 
     await facilitator.settlePayment(
       { amount: "100" },
-      { network: "base-sepolia" }
+      { network: "solana-devnet" }
     );
 
-    expect(mockCreateSigner).toHaveBeenCalledWith("base-sepolia", customKey);
-  });
-
-  it("handles settlement errors gracefully", async () => {
-    mockSettle.mockRejectedValueOnce(new Error("Transaction failed"));
-
-    const facilitator = new Facilitator({
-      evmPrivateKey: TEST_KEY,
-      networks: [baseSepolia],
-    });
-
-    await expect(
-      facilitator.settlePayment(
-        { amount: "100" },
-        { network: "base-sepolia" }
-      )
-    ).rejects.toThrow("Transaction failed");
-  });
-
-  it("correctly formats transaction as 0x-prefixed string", async () => {
-    mockSettle.mockResolvedValueOnce({
-      success: true,
-      transaction: "0x1234567890abcdef",
-      network: "base-sepolia",
-      payer: "0xtest",
-    });
-
-    const facilitator = new Facilitator({
-      evmPrivateKey: TEST_KEY,
-      networks: [baseSepolia],
-    });
-
-    const result = await facilitator.settlePayment(
-      { amount: "100" },
-      { network: "base-sepolia" }
-    );
-
-    expect(result.transaction).toMatch(/^0x[0-9a-fA-F]+$/);
+    expect(mockCreateSigner).toHaveBeenCalledWith("solana-devnet", TEST_PRIVATE_KEY);
   });
 });

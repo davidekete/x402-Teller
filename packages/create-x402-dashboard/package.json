@@ -1,0 +1,39 @@
+{
+  "name": "create-x402-dashboard",
+  "version": "0.1.0",
+  "description": "CLI tool to scaffold x402-Teller dashboard",
+  "type": "module",
+  "bin": {
+    "create-x402-dashboard": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "template"
+  ],
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target node --format esm",
+    "dev": "bun src/index.ts",
+    "prepublishOnly": "bun run build"
+  },
+  "keywords": [
+    "x402",
+    "teller",
+    "dashboard",
+    "solana",
+    "payment",
+    "cli",
+    "scaffold"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "prompts": "^2.4.2",
+    "chalk": "^5.3.0",
+    "ora": "^8.0.1",
+    "fs-extra": "^11.2.0"
+  },
+  "devDependencies": {
+    "@types/prompts": "^2.4.9",
+    "@types/fs-extra": "^11.0.4"
+  }
+}
