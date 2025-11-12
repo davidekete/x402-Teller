@@ -1,12 +1,13 @@
 import { Sequelize } from "sequelize";
+import { syncModels } from "./models/transaction.model";
 
 /**
  * Database configuration
  * Supports environment variables for configuration:
- * - DB_STORAGE: Path to SQLite file (default: in-memory)
+ * - DB_STORAGE: Path to SQLite file (default: ./x402-teller.db)
  * - DB_LOGGING: Enable SQL logging (default: false)
  */
-const dbStorage = process.env.DB_STORAGE || ":memory:";
+const dbStorage = process.env.DB_STORAGE || "./x402-teller.db";
 const dbLogging = process.env.DB_LOGGING === "true" ? console.log : false;
 
 export const sq = new Sequelize({
@@ -28,7 +29,7 @@ export const sq = new Sequelize({
 export async function connectToDB(): Promise<void> {
   try {
     await sq.authenticate();
-    console.log("✅ Database connection established successfully");
+    console.log("✅ Database connection established successfully"); 
   } catch (error) {
     console.error("❌ Unable to connect to the database:", error);
     throw error;
@@ -47,5 +48,3 @@ export async function closeDatabaseConnection(): Promise<void> {
     throw error;
   }
 }
-
-
