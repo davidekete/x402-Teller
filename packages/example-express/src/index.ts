@@ -59,12 +59,7 @@ const facilitator = new Facilitator({
   solanaPrivateKey,
   solanaFeePayer: solanaPublicKey, // Your Solana public address
   networks: ["solana-devnet"],
-  enableDashboard: true, // Enable transaction tracking
-  dashboardOptions: {
-    force: true, // Reset database on startup (DEVELOPMENT ONLY)
-    autoInit: true, // Auto-initialize dashboard (default: true)
-  },
-  payWallRouteConfig: payWallRoutes,
+  payWallRouteConfig: payWallRoutes, // Required for dashboard endpoint tracking
 });
 
 // Add facilitator endpoints using the Express adapter

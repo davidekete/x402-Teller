@@ -1,8 +1,17 @@
 import { describe, it, expect, beforeEach, mock } from "bun:test";
 import { Facilitator, DEFAULT_MIN_CONFIRMATIONS } from "../src/index";
 
-const TEST_PRIVATE_KEY = "5JqY7hZqJZQZ8Z8Z8Z8Z8Z8Z8Z8Z8Z8Z8Z8Z8Z8Z8Z8Z8Z8Z8Z8Z8Z8Z8Z";
-const TEST_PUBLIC_KEY = "FakePublicKey1111111111111111111111111111";
+// Test keys (these don't need to be valid since we mock the Solana operations)
+const TEST_PRIVATE_KEY = "test-private-key-base58-encoded";
+const TEST_PUBLIC_KEY = "TestPublicKey1111111111111111111111111111";
+
+const TEST_PAYWALL_CONFIG = {
+  "/test-route": {
+    price: "$0.10",
+    network: "solana-devnet" as const,
+    config: { description: "Test route" },
+  },
+};
 
 // Mock the x402 module
 const mockVerify = mock(() => Promise.resolve({ isValid: true, payer: "SolanaAddress123" }));
@@ -16,6 +25,9 @@ const mockSettle = mock(() =>
 );
 const mockCreateSigner = mock(() => Promise.resolve({}));
 
+// Mock Solana Keypair to avoid needing valid keys in tests
+const mockFromSecretKey = mock(() => ({ publicKey: { toBase58: () => TEST_PUBLIC_KEY } }));
+
 // Mock the x402 imports
 mock.module("x402/facilitator", () => ({
   verify: mockVerify,
@@ -27,12 +39,28 @@ mock.module("x402/types", () => ({
   SupportedSVMNetworks: ["solana", "solana-devnet"],
 }));
 
+// Mock Solana web3.js
+mock.module("@solana/web3.js", () => ({
+  Keypair: {
+    fromSecretKey: mockFromSecretKey,
+  },
+}));
+
+// Mock bs58
+mock.module("bs58", () => ({
+  default: {
+    decode: () => new Uint8Array(64), // Return valid 64-byte array
+  },
+}));
+
 describe("Facilitator - Constructor", () => {
   it("constructs successfully with valid Solana options", () => {
     const facilitator = new Facilitator({
       solanaPrivateKey: TEST_PRIVATE_KEY,
       solanaFeePayer: TEST_PUBLIC_KEY,
       networks: ["solana-devnet"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
     });
 
     expect(facilitator).toBeDefined();
@@ -44,6 +72,8 @@ describe("Facilitator - Constructor", () => {
       solanaPrivateKey: TEST_PRIVATE_KEY,
       solanaFeePayer: TEST_PUBLIC_KEY,
       networks: ["solana-devnet"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
       minConfirmations: 3,
     });
 
@@ -55,6 +85,8 @@ describe("Facilitator - Constructor", () => {
       solanaPrivateKey: TEST_PRIVATE_KEY,
       solanaFeePayer: TEST_PUBLIC_KEY,
       networks: ["solana-devnet"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
     });
 
     expect(DEFAULT_MIN_CONFIRMATIONS).toBe(1);
@@ -66,6 +98,8 @@ describe("Facilitator - Constructor", () => {
       solanaPrivateKey: TEST_PRIVATE_KEY,
       solanaFeePayer: TEST_PUBLIC_KEY,
       networks: ["solana-devnet", "solana"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
     });
 
     expect(facilitator).toBeDefined();
@@ -77,6 +111,8 @@ describe("Facilitator - Constructor", () => {
         solanaPrivateKey: TEST_PRIVATE_KEY,
         solanaFeePayer: TEST_PUBLIC_KEY,
         networks: [],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
+        payWallRouteConfig: TEST_PAYWALL_CONFIG,
       });
     }).toThrow("at least one network is required");
   });
@@ -87,6 +123,8 @@ describe("Facilitator - Constructor", () => {
         solanaPrivateKey: "" as any,
         solanaFeePayer: TEST_PUBLIC_KEY,
         networks: ["solana-devnet"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
+        payWallRouteConfig: TEST_PAYWALL_CONFIG,
       });
     }).toThrow("solanaPrivateKey is required");
   });
@@ -97,6 +135,8 @@ describe("Facilitator - Constructor", () => {
         solanaPrivateKey: TEST_PRIVATE_KEY,
         solanaFeePayer: "" as any,
         networks: ["solana-devnet"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
+        payWallRouteConfig: TEST_PAYWALL_CONFIG,
       });
     }).toThrow("solanaFeePayer is required");
   });
@@ -108,6 +148,7 @@ describe("Facilitator.listSupportedKinds", () => {
       solanaPrivateKey: TEST_PRIVATE_KEY,
       solanaFeePayer: TEST_PUBLIC_KEY,
       networks: ["solana-devnet"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
     });
 
     const result = facilitator.listSupportedKinds();
@@ -128,6 +169,7 @@ describe("Facilitator.listSupportedKinds", () => {
       solanaPrivateKey: TEST_PRIVATE_KEY,
       solanaFeePayer: TEST_PUBLIC_KEY,
       networks: ["solana-devnet", "solana"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
     });
 
     const result = facilitator.listSupportedKinds();
@@ -154,6 +196,7 @@ describe("Facilitator.verifyPayment", () => {
       solanaPrivateKey: TEST_PRIVATE_KEY,
       solanaFeePayer: TEST_PUBLIC_KEY,
       networks: ["solana-devnet"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
     });
 
     const result = await facilitator.verifyPayment(
@@ -172,6 +215,7 @@ describe("Facilitator.verifyPayment", () => {
       solanaPrivateKey: TEST_PRIVATE_KEY,
       solanaFeePayer: TEST_PUBLIC_KEY,
       networks: ["solana-devnet"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
     });
 
     const result = await facilitator.verifyPayment(
@@ -188,6 +232,7 @@ describe("Facilitator.verifyPayment", () => {
       solanaPrivateKey: TEST_PRIVATE_KEY,
       solanaFeePayer: TEST_PUBLIC_KEY,
       networks: ["solana-devnet"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
     });
 
     const payload = { signature: "5abc...", amount: "100" };
@@ -222,6 +267,7 @@ describe("Facilitator.settlePayment", () => {
       solanaPrivateKey: TEST_PRIVATE_KEY,
       solanaFeePayer: TEST_PUBLIC_KEY,
       networks: ["solana-devnet"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
     });
 
     const result = await facilitator.settlePayment(
@@ -247,6 +293,7 @@ describe("Facilitator.settlePayment", () => {
       solanaPrivateKey: TEST_PRIVATE_KEY,
       solanaFeePayer: TEST_PUBLIC_KEY,
       networks: ["solana-devnet"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
     });
 
     const result = await facilitator.settlePayment(
@@ -262,6 +309,7 @@ describe("Facilitator.settlePayment", () => {
       solanaPrivateKey: TEST_PRIVATE_KEY,
       solanaFeePayer: TEST_PUBLIC_KEY,
       networks: ["solana-devnet"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
     });
 
     const result = await facilitator.settlePayment(
@@ -286,6 +334,7 @@ describe("Facilitator.settlePayment", () => {
       solanaPrivateKey: TEST_PRIVATE_KEY,
       solanaFeePayer: TEST_PUBLIC_KEY,
       networks: ["solana-devnet"],
+      payWallRouteConfig: TEST_PAYWALL_CONFIG,
     });
 
     await facilitator.settlePayment(

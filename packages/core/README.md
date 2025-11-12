@@ -58,6 +58,13 @@ const facilitator = new Facilitator({
   solanaPrivateKey: process.env.SOLANA_PRIVATE_KEY!,
   solanaFeePayer: process.env.SOLANA_PUBLIC_KEY!,
   networks: ["solana-devnet"], // or "solana"
+  payWallRouteConfig: {
+    "/api/protected": {
+      price: "$0.10",
+      network: "solana-devnet",
+      config: { description: "Premium API access" },
+    },
+  },
 });
 
 // Mounts all facilitator endpoints at /facilitator
@@ -77,6 +84,13 @@ const facilitator = new Facilitator({
   solanaPrivateKey: process.env.SOLANA_PRIVATE_KEY!,
   solanaFeePayer: process.env.SOLANA_PUBLIC_KEY!,
   networks: ["solana-devnet"],
+  payWallRouteConfig: {
+    "/api/protected": {
+      price: "$0.10",
+      network: "solana-devnet",
+      config: { description: "Premium API access" },
+    },
+  },
 });
 
 // Map these methods to your routes:
@@ -132,10 +146,11 @@ Now when clients hit `/protected-route`:
 
 ```ts
 new Facilitator({
-  solanaPrivateKey: string;    // Base58-encoded private key
-  solanaFeePayer: string;      // Base58-encoded public key
-  networks: SolanaNetwork[];   // e.g., ["solana-devnet", "solana"]
-  minConfirmations?: number;   // Optional (not enforced yet)
+  solanaPrivateKey: string;          // Base58-encoded private key
+  solanaFeePayer: string;            // Base58-encoded public key
+  networks: SolanaNetwork[];         // e.g., ["solana-devnet", "solana"]
+  payWallRouteConfig: RoutesConfig;  // Route configuration for paywall endpoints
+  minConfirmations?: number;         // Optional (default: 1)
 })
 ```
 
